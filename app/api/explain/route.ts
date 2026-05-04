@@ -14,6 +14,7 @@ function extractJson(text: string) {
     return JSON.parse(cleaned);
   } catch {
     const match = cleaned.match(/\{[\s\S]*\}/);
+
     if (match) {
       try {
         return JSON.parse(match[0]);
@@ -46,7 +47,7 @@ export async function POST(request: Request) {
     const prompt = `
 Você é um professor especialista em preparação para a 1ª fase da OAB, com domínio de Direito brasileiro e estilo didático, objetivo e seguro.
 
-Sua tarefa é explicar uma questão objetiva da OAB com máxima precisão jurídica.
+Sua tarefa é explicar uma questão objetiva da OAB com precisão jurídica, mas sem deixar a resposta pesada demais para quem está estudando.
 
 REGRAS GERAIS:
 - Responda em português do Brasil.
@@ -57,12 +58,17 @@ REGRAS GERAIS:
 - Se souber apenas a lei, mas não o artigo, informe somente a lei.
 - Se souber artigo, inciso, parágrafo, alínea ou súmula, informe com precisão.
 - Nunca cite artigo aproximado ou duvidoso.
+- Se citar artigo, ele precisa corresponder exatamente ao tema da questão.
+- Não adapte ou invente texto legal.
 - Não diga “conforme a lei” sem indicar qual lei, se souber.
 - Não afirme que uma alternativa está errada sem explicar o motivo jurídico.
-- Seja claro, mas não escreva uma resposta longa demais.
 - Evite respostas genéricas.
 - Priorize legislação vigente e entendimento consolidado.
 - Se a questão for conceitual e não depender diretamente de artigo de lei, explique o conceito e deixe "legal_reference" vazio, salvo se houver referência segura.
+- A explicação principal deve ser didática e simples.
+- A fundamentação técnica deve ficar separada.
+- Não coloque artigos logo no primeiro período, salvo se a questão depender diretamente da literalidade da lei.
+- Se houver dúvida sobre o artigo exato, não cite o artigo.
 
 REGRAS DE PRECISÃO POR DISCIPLINA:
 - Em Ética Profissional, priorize Lei nº 8.906/1994, Regulamento Geral da OAB, Código de Ética e Disciplina da OAB e Provimentos do CFOAB.
@@ -87,24 +93,50 @@ REGRAS DE PRECISÃO POR DISCIPLINA:
 - Em Estatuto da Advocacia/OAB, indique artigo e inciso quando souber com segurança.
 
 FORMATO DA EXPLICAÇÃO:
-1. Comece dizendo: "A alternativa [letra] está correta porque..."
-2. Explique a tese jurídica central.
-3. Explique por que cada alternativa errada está incorreta.
-4. Se houver base legal segura, indique artigo/inciso/parágrafo/súmula.
-5. Se houver pegadinha da banca, destaque de forma curta.
-6. Use no máximo 250 palavras na explicação.
+A resposta deve ter duas camadas:
+
+1. "simple_explanation":
+- Explique de forma simples, como se estivesse ensinando uma pessoa que está começando a estudar para a OAB.
+- Use linguagem clara e direta.
+- Evite começar com muitos artigos, incisos e detalhes técnicos.
+- Primeiro explique a lógica da questão.
+- Depois diga, de forma curta, por que as alternativas erradas estão erradas.
+- Máximo de 160 palavras.
+
+2. "technical_explanation":
+- Explique a fundamentação jurídica com maior precisão.
+- Indique artigo, inciso, parágrafo, súmula ou entendimento consolidado apenas quando tiver certeza.
+- Não invente base legal.
+- Se a base legal exata for duvidosa, deixe legal_reference vazio ou indique apenas a lei.
+- Máximo de 180 palavras.
+
+O campo "explanation" deve juntar as duas camadas em um único texto organizado assim:
+
+Explicação simples:
+[texto da simple_explanation]
+
+Fundamentação técnica:
+[texto da technical_explanation]
 
 CRITÉRIO PARA O CAMPO "confidence":
 - Use "alta" quando tiver segurança da resposta e da base jurídica.
 - Use "media" quando a explicação estiver segura, mas a base legal exata não puder ser indicada.
 - Use "baixa" quando houver risco de imprecisão ou ausência de base legal segura.
 
+REGRAS PARA OS CARDS:
+- Os cards devem ajudar na memorização da regra central.
+- Não crie cards muito longos.
+- Não coloque base legal duvidosa nos cards.
+- O card de pegadinha deve destacar a armadilha da questão.
+
 RETORNE SOMENTE JSON VÁLIDO, SEM MARKDOWN, SEM TEXTO FORA DO JSON.
 
 Formato obrigatório:
 {
-  "explanation": "Texto didático explicando a alternativa correta e o erro das demais.",
-  "legal_reference": "Base legal precisa, por exemplo: art. 28, IV, da Lei nº 8.906/1994. Se não souber com segurança, deixe vazio.",
+  "simple_explanation": "Explicação simples e didática para estudo inicial.",
+  "technical_explanation": "Fundamentação jurídica mais técnica e precisa.",
+  "explanation": "Explicação simples:\\n...\\n\\nFundamentação técnica:\\n...",
+  "legal_reference": "Base legal precisa. Se não souber com segurança, deixe vazio.",
   "legal_text": "Trecho curto da lei, somente se tiver certeza. Se não souber com segurança, deixe vazio.",
   "confidence": "alta | media | baixa",
   "study_cards": [
@@ -167,11 +199,47 @@ Resposta correta: ${q.correct_answer}
       );
     }
 
+    const simpleExplanation =
+      typeof parsed.simple_explanation === "string"
+        ? parsed.simple_explanation.trim()
+        : "";
+
+    const technicalExplanation =
+      typeof parsed.technical_explanation === "string"
+        ? parsed.technical_explanation.trim()
+        : "";
+
+    const fallbackExplanation =
+      typeof parsed.explanation === "string" ? parsed.explanation.trim() : "";
+
+    const finalExplanation =
+      simpleExplanation || technicalExplanation
+        ? [
+            simpleExplanation
+              ? `Explicação simples:\n${simpleExplanation}`
+              : "",
+            technicalExplanation
+              ? `Fundamentação técnica:\n${technicalExplanation}`
+              : ""
+          ]
+            .filter(Boolean)
+            .join("\n\n")
+        : fallbackExplanation;
+
     return NextResponse.json({
-      explanation: parsed.explanation || "",
-      legal_reference: parsed.legal_reference || "",
-      legal_text: parsed.legal_text || "",
-      confidence: parsed.confidence || "baixa",
+      explanation: finalExplanation,
+      legal_reference:
+        typeof parsed.legal_reference === "string"
+          ? parsed.legal_reference
+          : "",
+      legal_text:
+        typeof parsed.legal_text === "string" ? parsed.legal_text : "",
+      confidence:
+        parsed.confidence === "alta" ||
+        parsed.confidence === "media" ||
+        parsed.confidence === "baixa"
+          ? parsed.confidence
+          : "baixa",
       study_cards: Array.isArray(parsed.study_cards) ? parsed.study_cards : []
     });
   } catch (error) {
