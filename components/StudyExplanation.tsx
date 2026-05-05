@@ -4,7 +4,7 @@ function splitExplanation(explanation?: string) {
   if (!explanation) {
     return {
       simple: "",
-      technical: explanation || ""
+      technical: ""
     };
   }
 
@@ -19,6 +19,7 @@ function splitExplanation(explanation?: string) {
     const technicalStart = explanation.indexOf(technicalMarker);
 
     const simple = explanation.slice(simpleStart, technicalStart).trim();
+
     const technical = explanation
       .slice(technicalStart + technicalMarker.length)
       .trim();
@@ -40,13 +41,14 @@ export function StudyExplanation({ question }: { question: Question }) {
 
   const cards = question.study_cards || [];
 
-  if (
-    !question.explanation &&
-    !question.legal_reference &&
-    !question.legal_text &&
-    !question.confidence &&
-    cards.length === 0
-  ) {
+  const hasContent =
+    Boolean(question.explanation) ||
+    Boolean(question.legal_reference) ||
+    Boolean(question.legal_text) ||
+    Boolean(question.confidence) ||
+    cards.length > 0;
+
+  if (!hasContent) {
     return (
       <div className="notice">
         Ainda não há explicação gerada para esta questão.
