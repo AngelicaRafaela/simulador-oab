@@ -59,6 +59,36 @@ function extractJson(text: string) {
   }
 }
 
+function sanitizeLegalText(value: unknown) {
+  if (typeof value !== "string") return "";
+
+  const cleaned = value.trim();
+
+  if (!cleaned) return "";
+
+  // Evita transcrições longas ou artigos com vários incisos.
+  if (cleaned.length > 350) return "";
+
+  // Evita texto com recortes, porque provavelmente não é literal completo/confiável.
+  if (
+    cleaned.includes("[...]") ||
+    cleaned.includes("...") ||
+    cleaned.includes("(...)") ||
+    cleaned.includes("[…]")
+  ) {
+    return "";
+  }
+
+  // Evita quando a IA mistura vários artigos ou muitos incisos no mesmo campo.
+  const tooManyLegalMarkers =
+    (cleaned.match(/\bArt\.|\bart\.|\b§|\binciso\b|\bI\s*-|\bII\s*-|\bIII\s*-/g) || [])
+      .length > 4;
+
+  if (tooManyLegalMarkers) return "";
+
+  return cleaned;
+}
+
 function isOfficialSource(uri: string) {
   const normalized = uri.toLowerCase();
 
@@ -153,8 +183,14 @@ REGRAS GERAIS:
 - Nunca cite artigo aproximado ou duvidoso.
 - Se citar artigo, ele precisa corresponder exatamente ao tema da questão.
 - Não adapte ou invente texto legal.
-- Só preencha "legal_text" se tiver absoluta certeza do texto literal e se ele vier de fonte oficial.
-- Se houver qualquer dúvida sobre o texto literal da lei, deixe "legal_text" vazio.
+- O campo "legal_text" NÃO é obrigatório.
+- Prefira deixar "legal_text" vazio.
+- Só preencha "legal_text" quando o trecho legal for curto, literal, essencial para entender a questão e confirmado em fonte oficial.
+- Não transcreva artigos longos, parágrafos inteiros ou vários incisos.
+- Não resuma lei dentro de "legal_text"; esse campo deve conter apenas texto literal.
+- Se o artigo for longo, coloque apenas a referência em "legal_reference" e deixe "legal_text" vazio.
+- Se houver qualquer dúvida sobre a literalidade do trecho, deixe "legal_text" vazio.
+- Se a resposta depender de emenda constitucional, jurisprudência, súmula ou interpretação, prefira explicar no campo "technical_explanation" e deixar "legal_text" vazio.
 - Não diga “conforme a lei” sem indicar qual lei, se souber.
 - Não afirme que uma alternativa está errada sem explicar o motivo jurídico.
 - Evite respostas genéricas.
@@ -241,7 +277,7 @@ Formato obrigatório:
   "technical_explanation": "Fundamentação jurídica mais técnica e precisa.",
   "explanation": "Explicação simples:\\n...\\n\\nFundamentação técnica:\\n...",
   "legal_reference": "Base legal precisa confirmada em fonte oficial. Se não souber com segurança, deixe vazio.",
-  "legal_text": "Trecho curto da lei, somente se tiver certeza e fonte oficial. Se não souber com segurança, deixe vazio.",
+  "legal_text": "Trecho literal, curto e essencial da lei. Na dúvida, deixe vazio.",
   "confidence": "alta | media | baixa",
   "official_sources_used": [
     {
@@ -361,8 +397,7 @@ Resposta correta: ${q.correct_answer}
         typeof parsed.legal_reference === "string"
           ? parsed.legal_reference
           : "",
-      legal_text:
-        typeof parsed.legal_text === "string" ? parsed.legal_text : "",
+      legal_text: sanitizeLegalText(parsed.legal_text),
       confidence:
         parsed.confidence === "alta" ||
         parsed.confidence === "media" ||
