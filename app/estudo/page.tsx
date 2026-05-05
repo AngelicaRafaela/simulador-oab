@@ -11,6 +11,7 @@ function EstudoContent() {
   const { questions, setQuestions } = useOabData();
 
   const [subject, setSubject] = useState("");
+  const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<Question | null>(null);
   const [loadingAi, setLoadingAi] = useState(false);
   const [aiError, setAiError] = useState("");
@@ -25,15 +26,20 @@ function EstudoContent() {
     [validQuestions]
   );
 
-  const filtered = useMemo(
-    () =>
-      validQuestions.filter(
-        (q) => !subject || (q.subject || "Sem disciplina") === subject
-      ),
-    [validQuestions, subject]
-  );
+  const filtered = useMemo(() => {
+    const term = search.trim().toLowerCase();
 
-  const selectedQuestion = selected || filtered[0] || null;
+    return validQuestions.filter((q) => {
+      const matchSubject =
+        !subject || (q.subject || "Sem disciplina") === subject;
+
+      const text = `${q.number} ${q.subject} ${q.topic} ${q.statement}`.toLowerCase();
+
+      const matchSearch = !term || text.includes(term);
+
+      return matchSubject && matchSearch;
+    });
+  }, [validQuestions, subject, search]);
 
   const updateQuestion = (q: Question) => {
     setQuestions(questions.map((item) => (item.id === q.id ? q : item)));
@@ -41,16 +47,16 @@ function EstudoContent() {
   };
 
   const handleAi = async () => {
-    if (!selectedQuestion) return;
+    if (!selected) return;
 
     setLoadingAi(true);
     setAiError("");
 
     try {
-      const generated = await generateExplanation(selectedQuestion);
+      const generated = await generateExplanation(selected);
 
       updateQuestion({
-        ...selectedQuestion,
+        ...selected,
         explanation: generated.explanation,
         legal_reference: generated.legal_reference,
         legal_text: generated.legal_text,
@@ -67,27 +73,40 @@ function EstudoContent() {
     }
   };
 
+  const closeModal = () => {
+    setSelected(null);
+    setAiError("");
+  };
+
   return (
     <div className="grid">
       <div className="card">
         <h1>Área de estudo</h1>
 
         <p className="lead">
-          Estude as questões validadas antes de iniciar o simulado. Gere
-          explicações e cards com Gemini.
+          Escolha uma questão para estudar. Ao clicar, ela abre em uma janela
+          maior com alternativas, explicação, base legal e cards.
         </p>
 
         <div className="form-row">
+          <div>
+            <label>Buscar</label>
+
+            <input
+              className="input"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Buscar por texto, tema ou número..."
+            />
+          </div>
+
           <div>
             <label>Disciplina</label>
 
             <select
               className="select"
               value={subject}
-              onChange={(e) => {
-                setSubject(e.target.value);
-                setSelected(null);
-              }}
+              onChange={(e) => setSubject(e.target.value)}
             >
               <option value="">Todas</option>
 
@@ -100,7 +119,7 @@ function EstudoContent() {
           </div>
 
           <div>
-            <label>Questões validadas</label>
+            <label>Questões</label>
 
             <input
               className="input"
@@ -108,74 +127,92 @@ function EstudoContent() {
               readOnly
             />
           </div>
-
-          <div>
-            <label>Ação</label>
-
-            <a className="btn" href="/simulado">
-              Ir para simulado
-            </a>
-          </div>
         </div>
       </div>
 
-      <div className="grid grid-2">
+      {filtered.length === 0 ? (
         <div className="card">
-          <h2>Lista</h2>
-
-          {filtered.length === 0 ? (
-            <p className="muted">Nenhuma questão validada encontrada.</p>
-          ) : (
-            <div className="grid">
-              {filtered.map((q) => (
-                <button
-                  key={q.id}
-                  className={`option ${
-                    selectedQuestion?.id === q.id ? "selected" : ""
-                  }`}
-                  onClick={() => setSelected(q)}
-                >
-                  <strong>Questão {q.number}</strong>
-                  <br />
-
-                  <span className="muted">
-                    {q.subject || "Sem disciplina"}
-                  </span>
-                  <br />
-
-                  {q.statement.slice(0, 140)}...
-                </button>
-              ))}
-            </div>
-          )}
+          <p className="muted">Nenhuma questão validada encontrada.</p>
         </div>
-
-        <div className="card">
-          {!selectedQuestion ? (
-            <p className="muted">Selecione uma questão para estudar.</p>
-          ) : (
-            <>
-              <h2>Questão {selectedQuestion.number}</h2>
-
-              <p className="muted">
-                {selectedQuestion.subject || "Sem disciplina"} • Resposta:{" "}
-                <strong>{selectedQuestion.correct_answer}</strong>
-              </p>
-
-              <p style={{ lineHeight: 1.8 }}>{selectedQuestion.statement}</p>
-
-              <div className="question-box">
-                {(["A", "B", "C", "D"] as const).map((alt) => (
-                  <div
-                    key={alt}
-                    className={`option ${
-                      selectedQuestion.correct_answer === alt ? "correct" : ""
-                    }`}
-                  >
-                    <strong>{alt})</strong> {selectedQuestion.options[alt]}
-                  </div>
-                ))}
+      ) : (
+        <div className="study-list-grid">
+          {filtered.map((q) => (
+            <button
+              key={q.id}
+              className="study-question-card"
+              onClick={() => {
+                setSelected(q);
+                setAiError("");
+              }}
+            >
+              <div className="study-question-card-header">
+                <span className="badge validado">Questão {q.number}</span>
+                <span className="muted small">
+                  {q.subject || "Sem disciplina"}
+                </span>
               </div>
+
+              <h3>{q.topic || q.subject || "Questão de estudo"}</h3>
+
+              <p>{q.statement.slice(0, 210)}...</p>
+
+              <div className="study-question-card-footer">
+                <span>Resposta: {q.correct_answer}</span>
+
+                {q.explanation ? (
+                  <span className="badge validado">Com explicação</span>
+                ) : (
+                  <span className="badge precisa_revisao">Sem explicação</span>
+                )}
+              </div>
+            </button>
+          ))}
+        </div>
+      )}
+
+      {selected && (
+        <div className="modal-backdrop" onClick={closeModal}>
+          <div className="study-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="study-modal-header">
+              <div>
+                <span className="badge validado">Questão {selected.number}</span>
+
+                <h2>{selected.subject || "Sem disciplina"}</h2>
+
+                <p className="muted">
+                  {selected.exam} • {selected.test_type} • Resposta:{" "}
+                  <strong>{selected.correct_answer}</strong>
+                </p>
+              </div>
+
+              <button className="btn secondary" onClick={closeModal}>
+                Fechar
+              </button>
+            </div>
+
+            <div className="study-modal-body">
+              <section className="study-modal-section">
+                <h3>Enunciado</h3>
+
+                <p style={{ lineHeight: 1.8 }}>{selected.statement}</p>
+              </section>
+
+              <section className="study-modal-section">
+                <h3>Alternativas</h3>
+
+                <div className="question-box">
+                  {(["A", "B", "C", "D"] as const).map((alt) => (
+                    <div
+                      key={alt}
+                      className={`option ${
+                        selected.correct_answer === alt ? "correct" : ""
+                      }`}
+                    >
+                      <strong>{alt})</strong> {selected.options[alt]}
+                    </div>
+                  ))}
+                </div>
+              </section>
 
               <div className="actions">
                 <button
@@ -189,13 +226,11 @@ function EstudoContent() {
 
               {aiError && <div className="error">{aiError}</div>}
 
-              <div className="divider" />
-
-              <StudyExplanation question={selectedQuestion} />
-            </>
-          )}
+              <StudyExplanation question={selected} />
+            </div>
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }
