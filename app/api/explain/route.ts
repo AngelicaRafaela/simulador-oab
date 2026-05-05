@@ -1,7 +1,39 @@
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import { GoogleGenAI } from "@google/genai";
 import { NextResponse } from "next/server";
 
 export const runtime = "nodejs";
+
+type GroundingSource = {
+  title: string;
+  uri: string;
+  official: boolean;
+};
+
+const OFFICIAL_DOMAINS = [
+  "planalto.gov.br",
+  "stf.jus.br",
+  "stj.jus.br",
+  "tst.jus.br",
+  "tse.jus.br",
+  "tre-",
+  "trt",
+  "trf",
+  "cnj.jus.br",
+  "senado.leg.br",
+  "camara.leg.br",
+  "cjf.jus.br",
+  "oab.org.br",
+  "cfoab.org.br",
+  "oas.org",
+  "corteidh.or.cr",
+  "ilo.org",
+  "who.int",
+  "un.org",
+  "receita.economia.gov.br",
+  "gov.br",
+  "ibama.gov.br",
+  "mma.gov.br"
+];
 
 function extractJson(text: string) {
   const cleaned = text
@@ -27,6 +59,44 @@ function extractJson(text: string) {
   }
 }
 
+function isOfficialSource(uri: string) {
+  const normalized = uri.toLowerCase();
+
+  return OFFICIAL_DOMAINS.some((domain) => normalized.includes(domain));
+}
+
+function getGroundingSources(response: any): GroundingSource[] {
+  const chunks =
+    response?.candidates?.[0]?.groundingMetadata?.groundingChunks || [];
+
+  const sources: GroundingSource[] = [];
+
+  for (const chunk of chunks) {
+    const web = chunk?.web;
+
+    if (!web?.uri) continue;
+
+    const uri = String(web.uri);
+    const title = String(web.title || uri);
+
+    sources.push({
+      title,
+      uri,
+      official: isOfficialSource(uri)
+    });
+  }
+
+  const deduplicated = new Map<string, GroundingSource>();
+
+  for (const source of sources) {
+    if (!deduplicated.has(source.uri)) {
+      deduplicated.set(source.uri, source);
+    }
+  }
+
+  return Array.from(deduplicated.values());
+}
+
 export async function POST(request: Request) {
   const apiKey = process.env.GEMINI_API_KEY;
 
@@ -47,19 +117,44 @@ export async function POST(request: Request) {
     const prompt = `
 Você é um professor especialista em preparação para a 1ª fase da OAB, com domínio de Direito brasileiro e estilo didático, objetivo e seguro.
 
-Sua tarefa é explicar uma questão objetiva da OAB com precisão jurídica, mas sem deixar a resposta pesada demais para quem está estudando.
+Sua tarefa é explicar uma questão objetiva da OAB com precisão jurídica, usando busca em fontes oficiais sempre que possível.
+
+IMPORTANTE:
+Você tem acesso à Pesquisa Google por grounding. Use a busca para conferir a base legal, súmula, artigo, inciso ou entendimento aplicável antes de responder.
+
+FONTES PRIORITÁRIAS:
+Use preferencialmente fontes oficiais, como:
+- planalto.gov.br
+- stf.jus.br
+- stj.jus.br
+- tst.jus.br
+- tse.jus.br
+- trf.jus.br
+- trt.jus.br
+- cnj.jus.br
+- senado.leg.br
+- camara.leg.br
+- cfoab.org.br
+- oab.org.br
+- oas.org
+- corteidh.or.cr
+- ilo.org
+- gov.br
 
 REGRAS GERAIS:
 - Responda em português do Brasil.
 - Não use emojis.
 - Não use linguagem informal.
-- Não invente lei, artigo, inciso, súmula, tese ou jurisprudência.
-- Se não souber a base legal exata, deixe "legal_reference" como string vazia.
+- Não invente lei, artigo, inciso, parágrafo, súmula, tese ou jurisprudência.
+- Se a fonte oficial não confirmar o artigo, inciso ou súmula, não cite esse artigo.
+- Se não encontrar base legal oficial segura, deixe "legal_reference" como string vazia.
 - Se souber apenas a lei, mas não o artigo, informe somente a lei.
 - Se souber artigo, inciso, parágrafo, alínea ou súmula, informe com precisão.
 - Nunca cite artigo aproximado ou duvidoso.
 - Se citar artigo, ele precisa corresponder exatamente ao tema da questão.
 - Não adapte ou invente texto legal.
+- Só preencha "legal_text" se tiver absoluta certeza do texto literal e se ele vier de fonte oficial.
+- Se houver qualquer dúvida sobre o texto literal da lei, deixe "legal_text" vazio.
 - Não diga “conforme a lei” sem indicar qual lei, se souber.
 - Não afirme que uma alternativa está errada sem explicar o motivo jurídico.
 - Evite respostas genéricas.
@@ -69,6 +164,15 @@ REGRAS GERAIS:
 - A fundamentação técnica deve ficar separada.
 - Não coloque artigos logo no primeiro período, salvo se a questão depender diretamente da literalidade da lei.
 - Se houver dúvida sobre o artigo exato, não cite o artigo.
+- Antes de responder, confira se o inciso citado corresponde exatamente ao princípio ou regra indicada.
+
+REGRAS ESPECÍFICAS DE PRECISÃO:
+- Se a questão mencionar livre concorrência na Constituição Federal, confira se a referência correta é o art. 170, IV.
+- Se a questão envolver lei municipal que impede instalação de estabelecimento comercial do mesmo ramo em determinada área, verifique a Súmula Vinculante 49 do STF.
+- Se a questão envolver divulgação de advocacia em conjunto com outra atividade, verifique o art. 1º, § 3º, da Lei nº 8.906/1994.
+- Se a questão envolver incompatibilidade ou impedimento na advocacia, verifique os arts. 27 a 30 da Lei nº 8.906/1994.
+- Se a questão envolver infração disciplinar na advocacia, verifique o art. 34 da Lei nº 8.906/1994.
+- Não use essas regras específicas se elas não forem compatíveis com o enunciado.
 
 REGRAS DE PRECISÃO POR DISCIPLINA:
 - Em Ética Profissional, priorize Lei nº 8.906/1994, Regulamento Geral da OAB, Código de Ética e Disciplina da OAB e Provimentos do CFOAB.
@@ -119,9 +223,9 @@ Fundamentação técnica:
 [texto da technical_explanation]
 
 CRITÉRIO PARA O CAMPO "confidence":
-- Use "alta" quando tiver segurança da resposta e da base jurídica.
-- Use "media" quando a explicação estiver segura, mas a base legal exata não puder ser indicada.
-- Use "baixa" quando houver risco de imprecisão ou ausência de base legal segura.
+- Use "alta" quando a resposta e a base jurídica forem confirmadas em fonte oficial.
+- Use "media" quando a explicação estiver segura, mas a base legal exata não puder ser confirmada em fonte oficial.
+- Use "baixa" quando houver risco de imprecisão ou ausência de fonte oficial segura.
 
 REGRAS PARA OS CARDS:
 - Os cards devem ajudar na memorização da regra central.
@@ -136,9 +240,15 @@ Formato obrigatório:
   "simple_explanation": "Explicação simples e didática para estudo inicial.",
   "technical_explanation": "Fundamentação jurídica mais técnica e precisa.",
   "explanation": "Explicação simples:\\n...\\n\\nFundamentação técnica:\\n...",
-  "legal_reference": "Base legal precisa. Se não souber com segurança, deixe vazio.",
-  "legal_text": "Trecho curto da lei, somente se tiver certeza. Se não souber com segurança, deixe vazio.",
+  "legal_reference": "Base legal precisa confirmada em fonte oficial. Se não souber com segurança, deixe vazio.",
+  "legal_text": "Trecho curto da lei, somente se tiver certeza e fonte oficial. Se não souber com segurança, deixe vazio.",
   "confidence": "alta | media | baixa",
+  "official_sources_used": [
+    {
+      "title": "Nome da fonte oficial usada",
+      "url": "URL oficial usada"
+    }
+  ],
   "study_cards": [
     {
       "title": "Resumo",
@@ -175,23 +285,34 @@ D) ${q.options?.D}
 Resposta correta: ${q.correct_answer}
 `;
 
-    const genAI = new GoogleGenerativeAI(apiKey);
-
-    const modelName = process.env.GEMINI_MODEL || "gemini-2.5-flash-lite";
-
-    const model = genAI.getGenerativeModel({
-      model: modelName
+    const ai = new GoogleGenAI({
+      apiKey
     });
 
-    const result = await model.generateContent(prompt);
-    const text = result.response.text();
+    const modelName = process.env.GEMINI_MODEL || "gemini-2.5-flash";
+
+    const response = await ai.models.generateContent({
+      model: modelName,
+      contents: prompt,
+      config: {
+        tools: [
+          {
+            googleSearch: {}
+          }
+        ]
+      }
+    });
+
+    const text = response.text || "";
     const parsed = extractJson(text);
+    const groundingSources = getGroundingSources(response);
 
     if (!parsed || typeof parsed.explanation !== "string") {
       return NextResponse.json(
         {
           error: "A IA não retornou JSON válido.",
-          raw: text
+          raw: text,
+          sources: groundingSources
         },
         {
           status: 502
@@ -226,6 +347,14 @@ Resposta correta: ${q.correct_answer}
             .join("\n\n")
         : fallbackExplanation;
 
+    const officialGroundingSources = groundingSources.filter(
+      (source) => source.official
+    );
+
+    const parsedOfficialSources = Array.isArray(parsed.official_sources_used)
+      ? parsed.official_sources_used
+      : [];
+
     return NextResponse.json({
       explanation: finalExplanation,
       legal_reference:
@@ -240,12 +369,16 @@ Resposta correta: ${q.correct_answer}
         parsed.confidence === "baixa"
           ? parsed.confidence
           : "baixa",
+      official_sources_used: parsedOfficialSources,
+      grounding_sources: groundingSources,
+      official_grounding_sources: officialGroundingSources,
       study_cards: Array.isArray(parsed.study_cards) ? parsed.study_cards : []
     });
   } catch (error) {
     return NextResponse.json(
       {
-        error: error instanceof Error ? error.message : "Erro ao gerar explicação."
+        error:
+          error instanceof Error ? error.message : "Erro ao gerar explicação."
       },
       {
         status: 500
