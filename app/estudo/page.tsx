@@ -5,6 +5,7 @@ import { ClientOnly } from "@/components/ClientOnly";
 import { useOabData } from "@/hooks/useOabData";
 import { generateExplanation } from "@/lib/aiClient";
 import type { Question } from "@/lib/types";
+import { StudyExplanation } from "@/components/StudyExplanation";
 
 function EstudoContent() {
   const { questions, setQuestions } = useOabData();
@@ -190,68 +191,10 @@ function EstudoContent() {
               {aiError && <div className="error">{aiError}</div>}
 
               <div className="divider" />
+<div className="divider" />
 
-              <h3>Explicação</h3>
-
-              {selectedQuestion.explanation ? (
-                <p>{selectedQuestion.explanation}</p>
-              ) : (
-                <p className="muted">Ainda não há explicação cadastrada.</p>
-              )}
-
-              {selectedQuestion.legal_reference && (
-                <p>
-                  <strong>Base legal:</strong>{" "}
-                  {selectedQuestion.legal_reference}
-                </p>
-              )}
-
-              {selectedQuestion.legal_text && (
-                <p>
-                  <strong>Texto legal:</strong> {selectedQuestion.legal_text}
-                </p>
-              )}
-
-              {selectedQuestion.confidence && (
-                <p>
-                  <strong>Confiança da IA:</strong>{" "}
-                  {selectedQuestion.confidence}
-                </p>
-              )}
-            </>
-          )}
-        </div>
-      </div>
-
-      {selectedQuestion?.study_cards &&
-        selectedQuestion.study_cards.length > 0 && (
-          <div className="card">
-            <h2>Cards de estudo</h2>
-
-            <div className="grid grid-3">
-              {selectedQuestion.study_cards.map((card, index) => (
-                <button
-                  key={index}
-                  className="study-card"
-                  onClick={() =>
-                    setFlipped((current) => ({
-                      ...current,
-                      [index]: !current[index]
-                    }))
-                  }
-                >
-                  <strong>{card.title}</strong>
-
-                  <p>{flipped[index] ? card.back : card.front}</p>
-
-                  <p className="muted small" style={{ marginTop: 10 }}>
-                    Clique para virar
-                  </p>
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
+<StudyExplanation question={selectedQuestion} />
+              
     </div>
   );
 }

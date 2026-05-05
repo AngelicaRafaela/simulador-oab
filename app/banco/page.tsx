@@ -5,6 +5,7 @@ import { ClientOnly } from "@/components/ClientOnly";
 import { useOabData } from "@/hooks/useOabData";
 import { generateExplanation } from "@/lib/aiClient";
 import type { Question, ReviewStatus } from "@/lib/types";
+import { StudyExplanation } from "@/components/StudyExplanation";
 
 function StatusBadge({ status }: { status: ReviewStatus }) {
   return <span className={`badge ${status}`}>{status}</span>;
@@ -116,58 +117,9 @@ function QuestionDetail({
 
       {aiError && <div className="error">{aiError}</div>}
 
-      {(question.explanation ||
-        question.legal_reference ||
-        question.legal_text ||
-        question.confidence) && (
-        <>
-          <div className="divider" />
+      <div className="divider" />
 
-          <h3>Estudo</h3>
-
-          {question.explanation && <p>{question.explanation}</p>}
-
-          {question.legal_reference && (
-            <p>
-              <strong>Base legal:</strong> {question.legal_reference}
-            </p>
-          )}
-
-          {question.legal_text && (
-            <p>
-              <strong>Texto da lei:</strong> {question.legal_text}
-            </p>
-          )}
-
-          {question.confidence && (
-            <p>
-              <strong>Confiança da IA:</strong> {question.confidence}
-            </p>
-          )}
-        </>
-      )}
-
-      {question.study_cards && question.study_cards.length > 0 && (
-        <>
-          <div className="divider" />
-
-          <h3>Cards</h3>
-
-          <div className="grid grid-3">
-            {question.study_cards.map((card, index) => (
-              <div className="study-card" key={index}>
-                <strong>{card.title}</strong>
-
-                <p>{card.front}</p>
-
-                <div className="divider" />
-
-                <p>{card.back}</p>
-              </div>
-            ))}
-          </div>
-        </>
-      )}
+<StudyExplanation question={question} />
     </div>
   );
 }
