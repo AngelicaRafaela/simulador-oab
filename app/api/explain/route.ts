@@ -205,6 +205,8 @@ REGRAS GERAIS:
 - Não coloque artigos logo no primeiro período, salvo se a questão depender diretamente da literalidade da lei.
 - Se houver dúvida sobre o artigo exato, não cite o artigo.
 - Antes de responder, confira se o inciso citado corresponde exatamente ao princípio ou regra indicada.
+- Não mencione exceções complexas ou hipóteses secundárias se elas não forem necessárias para resolver a questão.
+- Na explicação simples, foque apenas na regra que resolve a alternativa correta.
 
 REGRAS ESPECÍFICAS DE PRECISÃO:
 - Se a questão mencionar livre concorrência na Constituição Federal, confira se a referência correta é o art. 170, IV.
@@ -240,11 +242,14 @@ FORMATO DA EXPLICAÇÃO:
 A resposta deve ter duas camadas:
 
 1. "simple_explanation":
+1. "simple_explanation":
 - Explique de forma simples, como se estivesse ensinando uma pessoa que está começando a estudar para a OAB.
 - Use linguagem clara e direta.
 - Evite começar com muitos artigos, incisos e detalhes técnicos.
 - Primeiro explique a lógica da questão.
 - Depois diga, de forma curta, por que as alternativas erradas estão erradas.
+- Não mencione exceções complexas ou hipóteses secundárias se elas não forem necessárias para resolver a questão.
+- Foque apenas na regra que resolve a alternativa correta.
 - Máximo de 160 palavras.
 
 2. "technical_explanation":
