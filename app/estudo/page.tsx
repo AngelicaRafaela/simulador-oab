@@ -2,17 +2,16 @@
 
 import { useMemo, useState } from "react";
 import { ClientOnly } from "@/components/ClientOnly";
+import { StudyExplanation } from "@/components/StudyExplanation";
 import { useOabData } from "@/hooks/useOabData";
 import { generateExplanation } from "@/lib/aiClient";
 import type { Question } from "@/lib/types";
-import { StudyExplanation } from "@/components/StudyExplanation";
 
 function EstudoContent() {
   const { questions, setQuestions } = useOabData();
 
   const [subject, setSubject] = useState("");
   const [selected, setSelected] = useState<Question | null>(null);
-  const [flipped, setFlipped] = useState<Record<number, boolean>>({});
   const [loadingAi, setLoadingAi] = useState(false);
   const [aiError, setAiError] = useState("");
 
@@ -191,10 +190,12 @@ function EstudoContent() {
               {aiError && <div className="error">{aiError}</div>}
 
               <div className="divider" />
-<div className="divider" />
 
-<StudyExplanation question={selectedQuestion} />
-              
+              <StudyExplanation question={selectedQuestion} />
+            </>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
