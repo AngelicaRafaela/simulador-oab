@@ -37,6 +37,7 @@ const OFFICIAL_DOMAINS = [
 
 function extractJson(text: string) {
   const cleaned = text
+    .replace(/^\uFEFF/, "")
     .replace(/^```json\s*/i, "")
     .replace(/^```\s*/i, "")
     .replace(/```\s*$/i, "")
@@ -45,11 +46,14 @@ function extractJson(text: string) {
   try {
     return JSON.parse(cleaned);
   } catch {
-    const match = cleaned.match(/\{[\s\S]*\}/);
+    const firstBrace = cleaned.indexOf("{");
+    const lastBrace = cleaned.lastIndexOf("}");
 
-    if (match) {
+    if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+      const jsonCandidate = cleaned.slice(firstBrace, lastBrace + 1);
+
       try {
-        return JSON.parse(match[0]);
+        return JSON.parse(jsonCandidate);
       } catch {
         return null;
       }
@@ -343,18 +347,25 @@ Resposta correta: ${q.correct_answer}
     const parsed = extractJson(text);
     const groundingSources = getGroundingSources(response);
 
-    if (!parsed || typeof parsed.explanation !== "string") {
-      return NextResponse.json(
-        {
-          error: "A IA não retornou JSON válido.",
-          raw: text,
-          sources: groundingSources
-        },
-        {
-          status: 502
-        }
-      );
+    if (
+  !parsed ||
+  (
+    typeof parsed.explanation !== "string" &&
+    typeof parsed.simple_explanation !== "string" &&
+    typeof parsed.technical_explanation !== "string"
+  )
+) {
+  return NextResponse.json(
+    {
+      error: "A IA não retornou JSON válido.",
+      raw: text,
+      sources: groundingSources
+    },
+    {
+      status: 502
     }
+  );
+}
 
     const simpleExplanation =
       typeof parsed.simple_explanation === "string"
@@ -366,8 +377,8 @@ Resposta correta: ${q.correct_answer}
         ? parsed.technical_explanation.trim()
         : "";
 
-    const fallbackExplanation =
-      typeof parsed.explanation === "string" ? parsed.explanation.trim() : "";
+   const fallbackExplanation =
+  typeof parsed.explanation === "string" ? parsed.explanation.trim() : "";
 
     const finalExplanation =
       simpleExplanation || technicalExplanation
