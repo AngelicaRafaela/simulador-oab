@@ -11,6 +11,10 @@ function StatusBadge({ status }: { status: ReviewStatus }) {
   return <span className={`badge ${status}`}>{status}</span>;
 }
 
+function delay(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 function QuestionDetail({
   question,
   onClose,
@@ -119,7 +123,7 @@ function QuestionDetail({
 
       <div className="divider" />
 
-<StudyExplanation question={question} />
+      <StudyExplanation question={question} />
     </div>
   );
 }
@@ -131,6 +135,10 @@ function BancoContent() {
   const [status, setStatus] = useState("");
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<Question | null>(null);
+
+  const [bulkLoading, setBulkLoading] = useState(false);
+  const [bulkProgress, setBulkProgress] = useState({ done: 0, total: 0 });
+  const [bulkMessage, setBulkMessage] = useState("");
 
   const subjects = useMemo(
     () =>
@@ -149,7 +157,8 @@ function BancoContent() {
 
       const matchStatus = !status || item.review_status === status;
 
-      const text = `${item.statement} ${item.subject} ${item.topic} ${item.number}`.toLowerCase();
+      const text =
+        `${item.statement} ${item.subject} ${item.topic} ${item.number}`.toLowerCase();
 
       const matchSearch = !term || text.includes(term);
 
@@ -174,15 +183,113 @@ function BancoContent() {
     });
   };
 
+  const handleBulkGenerate = async () => {
+    if (bulkLoading) return;
+
+    const confirmRun = window.confirm(
+      "Deseja gerar explicações com IA para as questões filtradas que ainda não têm explicação? Esse processo pode demorar alguns minutos."
+    );
+
+    if (!confirmRun) return;
+
+    const targetQuestions = filtered.filter((q) => !q.explanation);
+
+    if (targetQuestions.length === 0) {
+      setBulkMessage(
+        "Nenhuma questão sem explicação encontrada nos filtros atuais."
+      );
+      return;
+    }
+
+    setBulkLoading(true);
+    setBulkMessage("");
+    setBulkProgress({ done: 0, total: targetQuestions.length });
+
+    let updatedQuestions = [...questions];
+    let successCount = 0;
+    let errorCount = 0;
+
+    try {
+      for (let i = 0; i < targetQuestions.length; i++) {
+        const question = targetQuestions[i];
+
+        try {
+          const generated = await generateExplanation(question);
+
+          const updatedQuestion: Question = {
+            ...question,
+            explanation: generated.explanation,
+            legal_reference: generated.legal_reference,
+            legal_text: generated.legal_text,
+            confidence: generated.confidence,
+            study_cards: generated.study_cards,
+            updated_at: new Date().toISOString()
+          };
+
+          updatedQuestions = updatedQuestions.map((item) =>
+            item.id === updatedQuestion.id ? updatedQuestion : item
+          );
+
+          setQuestions(updatedQuestions);
+
+          if (selected?.id === updatedQuestion.id) {
+            setSelected(updatedQuestion);
+          }
+
+          successCount++;
+        } catch (error) {
+          console.error(
+            "Erro ao gerar explicação da questão",
+            question.number,
+            error
+          );
+          errorCount++;
+        }
+
+        setBulkProgress({ done: i + 1, total: targetQuestions.length });
+
+        await delay(500);
+      }
+
+      setBulkMessage(
+        `Processo concluído. ${successCount} questão(ões) geradas com sucesso e ${errorCount} com erro.`
+      );
+    } finally {
+      setBulkLoading(false);
+    }
+  };
+
   return (
     <div className="grid">
       <div className="card">
-        <h1>Banco de questões</h1>
+        <div
+          className="actions"
+          style={{
+            justifyContent: "space-between",
+            alignItems: "flex-start",
+            marginTop: 0
+          }}
+        >
+          <div>
+            <h1>Banco de questões</h1>
 
-        <p className="lead">
-          Revise, filtre, gere explicações e valide questões antes de usá-las no
-          simulado.
-        </p>
+            <p className="lead">
+              Revise, filtre, gere explicações e valide questões antes de
+              usá-las no simulado.
+            </p>
+          </div>
+
+          <button
+            className="btn secondary"
+            onClick={handleBulkGenerate}
+            disabled={bulkLoading || filtered.length === 0}
+            title="Gera explicações apenas para as questões filtradas que ainda não possuem explicação"
+          >
+            {bulkLoading
+              ? `Gerando ${bulkProgress.done}/${bulkProgress.total}...`
+              : "Gerar Explicações com IA"}
+          </button>
+        </div>
 
         <div className="notice">
           Ao importar o gabarito oficial, questões completas são validadas
@@ -236,6 +343,29 @@ function BancoContent() {
           </div>
         </div>
       </div>
+
+      {bulkLoading && (
+        <div className="card">
+          <h3>Gerando explicações</h3>
+
+          <p className="muted">
+            Processando {bulkProgress.done} de {bulkProgress.total} questão(ões)...
+          </p>
+
+          <div className="progress">
+            <div
+              style={{
+                width:
+                  bulkProgress.total > 0
+                    ? `${(bulkProgress.done / bulkProgress.total) * 100}%`
+                    : "0%"
+              }}
+            />
+          </div>
+        </div>
+      )}
+
+      {bulkMessage && <div className="success">{bulkMessage}</div>}
 
       {selected && (
         <QuestionDetail
