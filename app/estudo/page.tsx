@@ -56,14 +56,24 @@ function EstudoContent() {
       const generated = await generateExplanation(selected);
 
       updateQuestion({
-        ...selected,
-        explanation: generated.explanation,
-        legal_reference: generated.legal_reference,
-        legal_text: generated.legal_text,
-        confidence: generated.confidence,
-        study_cards: generated.study_cards,
-        updated_at: new Date().toISOString()
-      });
+  ...selected,
+  explanation: generated.explanation,
+  legal_reference: generated.legal_reference,
+  legal_text: generated.legal_text,
+  confidence: generated.confidence,
+  study_cards: generated.study_cards,
+
+  subject_confirmed: generated.subject_confirmed,
+  main_topic: generated.main_topic,
+  study_topics: generated.study_topics,
+  study_focus: generated.study_focus,
+  exam_trap: generated.exam_trap,
+
+  subject: generated.subject_confirmed || selected.subject,
+  topic: generated.main_topic || selected.topic,
+
+  updated_at: new Date().toISOString()
+});
     } catch (error) {
       setAiError(
         error instanceof Error ? error.message : "Erro ao gerar explicação."

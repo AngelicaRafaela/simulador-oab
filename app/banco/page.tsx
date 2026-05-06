@@ -36,15 +36,25 @@ function QuestionDetail({
     try {
       const generated = await generateExplanation(question);
 
-      onUpdateQuestion({
-        ...question,
-        explanation: generated.explanation,
-        legal_reference: generated.legal_reference,
-        legal_text: generated.legal_text,
-        confidence: generated.confidence,
-        study_cards: generated.study_cards,
-        updated_at: new Date().toISOString()
-      });
+onUpdateQuestion({
+  ...question,
+  explanation: generated.explanation,
+  legal_reference: generated.legal_reference,
+  legal_text: generated.legal_text,
+  confidence: generated.confidence,
+  study_cards: generated.study_cards,
+
+  subject_confirmed: generated.subject_confirmed,
+  main_topic: generated.main_topic,
+  study_topics: generated.study_topics,
+  study_focus: generated.study_focus,
+  exam_trap: generated.exam_trap,
+
+  subject: generated.subject_confirmed || question.subject,
+  topic: generated.main_topic || question.topic,
+
+  updated_at: new Date().toISOString()
+});
     } catch (error) {
       setAiError(
         error instanceof Error ? error.message : "Erro ao gerar explicação."
@@ -216,15 +226,25 @@ function BancoContent() {
         try {
           const generated = await generateExplanation(question);
 
-          const updatedQuestion: Question = {
-            ...question,
-            explanation: generated.explanation,
-            legal_reference: generated.legal_reference,
-            legal_text: generated.legal_text,
-            confidence: generated.confidence,
-            study_cards: generated.study_cards,
-            updated_at: new Date().toISOString()
-          };
+const updatedQuestion: Question = {
+  ...question,
+  explanation: generated.explanation,
+  legal_reference: generated.legal_reference,
+  legal_text: generated.legal_text,
+  confidence: generated.confidence,
+  study_cards: generated.study_cards,
+
+  subject_confirmed: generated.subject_confirmed,
+  main_topic: generated.main_topic,
+  study_topics: generated.study_topics,
+  study_focus: generated.study_focus,
+  exam_trap: generated.exam_trap,
+
+  subject: generated.subject_confirmed || question.subject,
+  topic: generated.main_topic || question.topic,
+
+  updated_at: new Date().toISOString()
+};
 
           updatedQuestions = updatedQuestions.map((item) =>
             item.id === updatedQuestion.id ? updatedQuestion : item
@@ -287,7 +307,7 @@ function BancoContent() {
           >
             {bulkLoading
               ? `Gerando ${bulkProgress.done}/${bulkProgress.total}...`
-              : "Gerar Explicações com IA"}
+              : "Gerar explicações e classificar com IA"}
           </button>
         </div>
 

@@ -277,6 +277,24 @@ REGRAS PARA OS CARDS:
 - Não crie cards muito longos.
 - Não coloque base legal duvidosa nos cards.
 - O card de pegadinha deve destacar a armadilha da questão.
+CLASSIFICAÇÃO AUTOMÁTICA PARA ESTUDO:
+Além de explicar a questão, classifique a questão para estudo.
+
+A classificação deve ser útil para montar filtros, cards e cronograma automático.
+
+Preencha:
+- "subject_confirmed": a disciplina principal da questão. Exemplo: Direito Constitucional, Direito Civil, Direito do Trabalho, Ética Profissional.
+- "main_topic": a matéria principal cobrada dentro da disciplina. Exemplo: Nacionalidade, Controle de Constitucionalidade, Justa Causa, Publicidade na Advocacia, Execução Fiscal.
+- "study_topics": lista com 1 a 4 tópicos específicos cobrados. Exemplo: ["Justa Causa", "Suspensão do Contrato de Trabalho"].
+- "study_focus": explique de forma curta o que a banca queria testar.
+- "exam_trap": indique a pegadinha principal da questão.
+
+Regras:
+- Não use tópicos genéricos demais quando houver um tema específico.
+- Não invente tema que não esteja no enunciado.
+- Se a questão envolver mais de um tema, liste os temas em "study_topics".
+- "main_topic" deve ser o tema predominante da questão.
+- A classificação deve ajudar o aluno a organizar cronograma de estudo.
 
 RETORNE SOMENTE JSON VÁLIDO, SEM MARKDOWN, SEM TEXTO FORA DO JSON.
 
@@ -288,6 +306,16 @@ Formato obrigatório:
   "legal_reference": "Base legal precisa confirmada em fonte oficial. Se não souber com segurança, deixe vazio.",
   "legal_text": "Trecho literal, curto e essencial da lei. Na dúvida, deixe vazio.",
   "confidence": "alta | media | baixa",
+"confidence": "alta | media | baixa",
+"subject_confirmed": "Disciplina principal confirmada da questão, por exemplo: Direito do Trabalho.",
+"main_topic": "Matéria principal cobrada dentro da disciplina, por exemplo: Extinção do Contrato de Trabalho.",
+"study_topics": [
+  "Tópico específico 1",
+  "Tópico específico 2"
+],
+"study_focus": "Explique em uma frase o que a banca queria testar nesta questão.",
+"exam_trap": "Explique em uma frase qual era a pegadinha da questão.",
+"official_sources_used": [
   "official_sources_used": [
     {
       "title": "Nome da fonte oficial usada",
@@ -407,24 +435,43 @@ Resposta correta: ${q.correct_answer}
       ? parsed.official_sources_used
       : [];
 
-    return NextResponse.json({
-      explanation: finalExplanation,
-      legal_reference:
-        typeof parsed.legal_reference === "string"
-          ? parsed.legal_reference
-          : "",
-      legal_text: sanitizeLegalText(parsed.legal_text),
-      confidence:
-        parsed.confidence === "alta" ||
-        parsed.confidence === "media" ||
-        parsed.confidence === "baixa"
-          ? parsed.confidence
-          : "baixa",
-      official_sources_used: parsedOfficialSources,
-      grounding_sources: groundingSources,
-      official_grounding_sources: officialGroundingSources,
-      study_cards: Array.isArray(parsed.study_cards) ? parsed.study_cards : []
-    });
+return NextResponse.json({
+  explanation: finalExplanation,
+  legal_reference:
+    typeof parsed.legal_reference === "string"
+      ? parsed.legal_reference
+      : "",
+  legal_text: sanitizeLegalText(parsed.legal_text),
+  confidence:
+    parsed.confidence === "alta" ||
+    parsed.confidence === "media" ||
+    parsed.confidence === "baixa"
+      ? parsed.confidence
+      : "baixa",
+
+  subject_confirmed:
+    typeof parsed.subject_confirmed === "string"
+      ? parsed.subject_confirmed
+      : "",
+
+  main_topic:
+    typeof parsed.main_topic === "string" ? parsed.main_topic : "",
+
+  study_topics: Array.isArray(parsed.study_topics)
+    ? parsed.study_topics.filter((item: unknown) => typeof item === "string")
+    : [],
+
+  study_focus:
+    typeof parsed.study_focus === "string" ? parsed.study_focus : "",
+
+  exam_trap:
+    typeof parsed.exam_trap === "string" ? parsed.exam_trap : "",
+
+  official_sources_used: parsedOfficialSources,
+  grounding_sources: groundingSources,
+  official_grounding_sources: officialGroundingSources,
+  study_cards: Array.isArray(parsed.study_cards) ? parsed.study_cards : []
+});
   } catch (error) {
     return NextResponse.json(
       {

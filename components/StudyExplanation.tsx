@@ -40,12 +40,21 @@ export function StudyExplanation({ question }: { question: Question }) {
   const { simple, technical } = splitExplanation(question.explanation);
 
   const cards = question.study_cards || [];
+  const topics = question.study_topics || [];
+
+  const hasClassification =
+    question.subject_confirmed ||
+    question.main_topic ||
+    topics.length > 0 ||
+    question.study_focus ||
+    question.exam_trap;
 
   const hasContent =
     Boolean(question.explanation) ||
     Boolean(question.legal_reference) ||
     Boolean(question.legal_text) ||
     Boolean(question.confidence) ||
+    hasClassification ||
     cards.length > 0;
 
   if (!hasContent) {
@@ -58,6 +67,50 @@ export function StudyExplanation({ question }: { question: Question }) {
 
   return (
     <div className="grid" style={{ gap: 18 }}>
+      {hasClassification && (
+        <section className="card" style={{ boxShadow: "none" }}>
+          <h3>Classificação para estudo</h3>
+
+          {question.subject_confirmed && (
+            <p>
+              <strong>Disciplina:</strong> {question.subject_confirmed}
+            </p>
+          )}
+
+          {question.main_topic && (
+            <p>
+              <strong>Matéria principal:</strong> {question.main_topic}
+            </p>
+          )}
+
+          {topics.length > 0 && (
+            <div>
+              <strong>Tópicos cobrados:</strong>
+
+              <div className="actions" style={{ marginTop: 10 }}>
+                {topics.map((topic, index) => (
+                  <span className="badge" key={`${topic}-${index}`}>
+                    {topic}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {question.study_focus && (
+            <p>
+              <strong>Foco da banca:</strong> {question.study_focus}
+            </p>
+          )}
+
+          {question.exam_trap && (
+            <p>
+              <strong>Pegadinha:</strong> {question.exam_trap}
+            </p>
+          )}
+        </section>
+      )}
+
       {simple && (
         <section className="card" style={{ boxShadow: "none" }}>
           <h3>Explicação simples</h3>

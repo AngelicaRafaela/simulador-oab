@@ -33,12 +33,21 @@ export type Question = {
   source_page?: number | null;
   review_status: ReviewStatus;
   review_notes?: string;
+
+  explanation?: string;
   legal_reference?: string;
   legal_text?: string;
-  explanation?: string;
   confidence?: Confidence;
   difficulty?: string;
   study_cards?: StudyCard[];
+
+  subject_confirmed?: string;
+  main_topic?: string;
+  study_topics?: string[];
+  study_focus?: string;
+  exam_trap?: string;
+  user_notes?: string;
+
   created_at: string;
   updated_at: string;
 };
