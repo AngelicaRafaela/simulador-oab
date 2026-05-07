@@ -98,7 +98,7 @@ function EstudoContent() {
           maior com alternativas, explicação, base legal e cards.
         </p>
 
-        <div className="form-row">
+                <div className="form-row">
           <div>
             <label>Buscar</label>
 
@@ -137,6 +137,16 @@ function EstudoContent() {
               readOnly
             />
           </div>
+        </div>
+
+        <div className="actions">
+          <a className="btn secondary" href="/estudo/cards">
+            Estudar por cards de pergunta e resposta
+          </a>
+
+          <a className="btn" href="/simulado">
+            Ir para simulado
+          </a>
         </div>
       </div>
 
