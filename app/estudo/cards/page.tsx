@@ -27,26 +27,135 @@ function normalizeText(text: string) {
     .trim();
 }
 
+function expandSynonyms(text: string) {
+  let normalized = normalizeText(text);
+
+  const replacements: Array<[RegExp, string]> = [
+    [/\bnao e permitido\b/g, "vedado proibido nao permitido"],
+    [/\bnao pode\b/g, "vedado proibido nao permitido"],
+    [/\be proibido\b/g, "vedado proibido nao permitido"],
+    [/\be vedado\b/g, "vedado proibido nao permitido"],
+    [/\bvedada\b/g, "vedado proibido nao permitido"],
+    [/\bvedado\b/g, "vedado proibido nao permitido"],
+    [/\bdivulgacao\b/g, "divulgacao publicidade anunciar"],
+    [/\bdivulgar\b/g, "divulgacao publicidade anunciar"],
+    [/\bpublicidade\b/g, "divulgacao publicidade anunciar"],
+    [/\badvocacia\b/g, "advocacia servicos advocaticios advogado"],
+    [/\badvocaticios\b/g, "advocacia servicos advocaticios advogado"],
+    [/\bservicos juridicos\b/g, "advocacia servicos advocaticios juridicos"],
+    [/\boutra atividade\b/g, "outra atividade atividade diversa conjunto"],
+    [/\boutras atividades\b/g, "outra atividade atividade diversa conjunto"],
+    [/\bem conjunto\b/g, "conjunto junto juntamente"]
+  ];
+
+  for (const [pattern, replacement] of replacements) {
+    normalized = normalized.replace(pattern, replacement);
+  }
+
+  return normalized;
+}
+
 function getKeywords(text: string) {
   const stopwords = new Set([
-    "a", "o", "as", "os", "de", "da", "do", "das", "dos",
-    "e", "em", "no", "na", "nos", "nas", "um", "uma", "para",
-    "por", "com", "que", "se", "ao", "aos", "à", "às", "ou",
-    "é", "ser", "foi", "são", "como", "mais", "menos"
+    "a",
+    "o",
+    "as",
+    "os",
+    "de",
+    "da",
+    "do",
+    "das",
+    "dos",
+    "e",
+    "em",
+    "no",
+    "na",
+    "nos",
+    "nas",
+    "um",
+    "uma",
+    "para",
+    "por",
+    "com",
+    "que",
+    "se",
+    "ao",
+    "aos",
+    "ou",
+    "é",
+    "ser",
+    "foi",
+    "são",
+    "como",
+    "mais",
+    "menos",
+    "qual",
+    "quando",
+    "onde",
+    "sobre"
   ]);
 
-  return normalizeText(text)
+  return expandSynonyms(text)
     .split(" ")
     .filter((token) => token.length > 2 && !stopwords.has(token));
 }
 
 function calculateSimilarity(userAnswer: string, expectedAnswer: string) {
+  const normalizedUser = expandSynonyms(userAnswer);
+  const normalizedExpected = expandSynonyms(expectedAnswer);
+
+  if (!normalizedUser || !normalizedExpected) return 0;
+
+  // Respostas curtas afirmando a ideia central devem ser valorizadas.
+  const userSaysForbidden =
+    normalizedUser.includes("vedado") ||
+    normalizedUser.includes("proibido") ||
+    normalizedUser.includes("nao permitido");
+
+  const expectedSaysForbidden =
+    normalizedExpected.includes("vedado") ||
+    normalizedExpected.includes("proibido") ||
+    normalizedExpected.includes("nao permitido");
+
+  if (userSaysForbidden && expectedSaysForbidden) {
+    const userMentionsCore =
+      normalizedUser.includes("advocacia") ||
+      normalizedUser.includes("advogado") ||
+      normalizedUser.includes("divulgacao") ||
+      normalizedUser.includes("publicidade") ||
+      normalizedUser.includes("atividade") ||
+      normalizedUser.includes("conjunto");
+
+    if (userMentionsCore) {
+      return 90;
+    }
+
+    return 75;
+  }
+
   const userTokens = getKeywords(userAnswer);
   const expectedTokens = getKeywords(expectedAnswer);
 
   if (userTokens.length === 0 || expectedTokens.length === 0) {
     return 0;
   }
+
+  const userSet = new Set(userTokens);
+  const expectedSet = new Set(expectedTokens);
+
+  let intersections = 0;
+
+  expectedSet.forEach((token) => {
+    if (userSet.has(token)) intersections++;
+  });
+
+  const expectedCoverage = intersections / expectedSet.size;
+  const userCoverage = intersections / userSet.size;
+
+  const score = Math.round((expectedCoverage * 0.65 + userCoverage * 0.35) * 100);
+
+  return Math.max(0, Math.min(score, 100));
+}
 
   const userSet = new Set(userTokens);
   const expectedSet = new Set(expectedTokens);

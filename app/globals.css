@@ -1084,3 +1084,110 @@ pre {
   background: rgba(242, 194, 48, 0.16);
   color: #f2c230;
 }
+
+.flashcard-page {
+  display: grid;
+  gap: 18px;
+}
+
+.flashcard-qa-card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 26px;
+  box-shadow: var(--shadow);
+  padding: 24px;
+  display: grid;
+  gap: 20px;
+}
+
+.flashcard-topline h2 {
+  margin: 8px 0 0;
+}
+
+.flashcard-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.flashcard-side {
+  border: 1px solid var(--border);
+  background: var(--panel-2);
+  border-radius: 18px;
+  padding: 18px;
+}
+
+.flashcard-side h3 {
+  margin-top: 0;
+  margin-bottom: 10px;
+}
+
+.flashcard-side p {
+  margin: 0;
+  line-height: 1.8;
+}
+
+.flashcard-answer-box {
+  display: grid;
+  gap: 12px;
+}
+
+.flashcard-result-grid {
+  display: grid;
+  gap: 16px;
+}
+
+.flashcard-evaluation {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background: var(--panel-2);
+  padding: 18px;
+}
+
+.flashcard-score {
+  width: 88px;
+  height: 88px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  font-weight: 900;
+  font-size: 1.3rem;
+  border: 3px solid currentColor;
+  flex-shrink: 0;
+}
+
+.flashcard-score.good {
+  color: var(--success);
+  background: #ecfdf3;
+}
+
+.flashcard-score.medium {
+  color: var(--warning);
+  background: #fff6df;
+}
+
+.flashcard-score.warn {
+  color: #b7791f;
+  background: #fff9e8;
+}
+
+.flashcard-score.bad {
+  color: var(--danger);
+  background: #fff1f0;
+}
+
+@media (max-width: 720px) {
+  .flashcard-evaluation {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .flashcard-score {
+    width: 72px;
+    height: 72px;
+    font-size: 1.1rem;
+  }
+}
