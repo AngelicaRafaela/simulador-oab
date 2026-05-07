@@ -389,13 +389,15 @@ const updatedQuestion: Question = {
 
       {selected && (
   <div className="modal-backdrop" onClick={() => setSelected(null)}>
-    <div className="study-modal" onClick={(e) => e.stopPropagation()}>
-      <QuestionDetail
-        question={selected}
-        onClose={() => setSelected(null)}
-        onStatusChange={(next) => updateStatus(selected, next)}
-        onUpdateQuestion={updateQuestion}
-      />
+    <div className="study-modal banco-modal" onClick={(e) => e.stopPropagation()}>
+      <div className="study-modal-body">
+        <QuestionDetail
+          question={selected}
+          onClose={() => setSelected(null)}
+          onStatusChange={(next) => updateStatus(selected, next)}
+          onUpdateQuestion={updateQuestion}
+        />
+      </div>
     </div>
   </div>
 )}
