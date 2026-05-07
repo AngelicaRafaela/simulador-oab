@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { ClientOnly } from "@/components/ClientOnly";
 import { useOabData } from "@/hooks/useOabData";
-import type { Question, StudyCard } from "@/lib/types";
+import type { StudyCard } from "@/lib/types";
 
 type FlashcardItem = {
   id: string;
@@ -64,8 +64,8 @@ function expandSynonyms(text: string) {
 
     [/\batividade afim\b/g, "atividade afim complementar consultoria empresarial"],
     [/\batividades afins\b/g, "atividade afim complementar consultoria empresarial"],
-    [/\bconsultoria\b/g, "consultoria empresarial atividade afim"],
     [/\bconsultoria empresarial\b/g, "consultoria empresarial atividade afim"],
+    [/\bconsultoria\b/g, "consultoria empresarial atividade afim"],
 
     [/\boutra atividade\b/g, "outra atividade atividade diversa conjunto"],
     [/\boutras atividades\b/g, "outra atividade atividade diversa conjunto"],
@@ -241,34 +241,6 @@ function calculateSimilarity(userAnswer: string, expectedAnswer: string) {
       score = Math.max(score, 45);
     }
   }
-
-  return Math.max(0, Math.min(score, 100));
-}
-
-  const userTokens = getKeywords(userAnswer);
-  const expectedTokens = getKeywords(expectedAnswer);
-
-  if (userTokens.length === 0 || expectedTokens.length === 0) {
-    return 0;
-  }
-
-  const userSet = new Set(userTokens);
-  const expectedSet = new Set(expectedTokens);
-
-  let intersections = 0;
-
-  expectedSet.forEach((token) => {
-    if (userSet.has(token)) {
-      intersections++;
-    }
-  });
-
-  const expectedCoverage = intersections / expectedSet.size;
-  const userCoverage = intersections / userSet.size;
-
-  const score = Math.round(
-    (expectedCoverage * 0.65 + userCoverage * 0.35) * 100
-  );
 
   return Math.max(0, Math.min(score, 100));
 }
