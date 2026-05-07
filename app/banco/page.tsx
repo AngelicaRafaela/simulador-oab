@@ -388,13 +388,17 @@ const updatedQuestion: Question = {
       {bulkMessage && <div className="success">{bulkMessage}</div>}
 
       {selected && (
-        <QuestionDetail
-          question={selected}
-          onClose={() => setSelected(null)}
-          onStatusChange={(next) => updateStatus(selected, next)}
-          onUpdateQuestion={updateQuestion}
-        />
-      )}
+  <div className="modal-backdrop" onClick={() => setSelected(null)}>
+    <div className="study-modal" onClick={(e) => e.stopPropagation()}>
+      <QuestionDetail
+        question={selected}
+        onClose={() => setSelected(null)}
+        onStatusChange={(next) => updateStatus(selected, next)}
+        onUpdateQuestion={updateQuestion}
+      />
+    </div>
+  </div>
+)}
 
       <div className="table-wrap">
         <table>
