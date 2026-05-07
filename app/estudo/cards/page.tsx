@@ -32,6 +32,7 @@ function expandSynonyms(text: string) {
 
   const replacements: Array<[RegExp, string]> = [
     [/\bnao e permitido\b/g, "vedado proibido nao permitido"],
+    [/\bnao permitido\b/g, "vedado proibido nao permitido"],
     [/\bnao pode\b/g, "vedado proibido nao permitido"],
     [/\be proibido\b/g, "vedado proibido nao permitido"],
     [/\be vedado\b/g, "vedado proibido nao permitido"],
@@ -82,10 +83,10 @@ function getKeywords(text: string) {
     "ao",
     "aos",
     "ou",
-    "é",
+    "e",
     "ser",
     "foi",
-    "são",
+    "sao",
     "como",
     "mais",
     "menos",
@@ -106,7 +107,6 @@ function calculateSimilarity(userAnswer: string, expectedAnswer: string) {
 
   if (!normalizedUser || !normalizedExpected) return 0;
 
-  // Respostas curtas afirmando a ideia central devem ser valorizadas.
   const userSaysForbidden =
     normalizedUser.includes("vedado") ||
     normalizedUser.includes("proibido") ||
@@ -146,27 +146,17 @@ function calculateSimilarity(userAnswer: string, expectedAnswer: string) {
   let intersections = 0;
 
   expectedSet.forEach((token) => {
-    if (userSet.has(token)) intersections++;
+    if (userSet.has(token)) {
+      intersections++;
+    }
   });
 
   const expectedCoverage = intersections / expectedSet.size;
   const userCoverage = intersections / userSet.size;
 
-  const score = Math.round((expectedCoverage * 0.65 + userCoverage * 0.35) * 100);
-
-  return Math.max(0, Math.min(score, 100));
-}
-
-  const userSet = new Set(userTokens);
-  const expectedSet = new Set(expectedTokens);
-
-  let intersections = 0;
-
-  expectedSet.forEach((token) => {
-    if (userSet.has(token)) intersections++;
-  });
-
-  const score = Math.round((intersections / expectedSet.size) * 100);
+  const score = Math.round(
+    (expectedCoverage * 0.65 + userCoverage * 0.35) * 100
+  );
 
   return Math.max(0, Math.min(score, 100));
 }
@@ -195,13 +185,20 @@ function CardsStudyContent() {
   const [savedScore, setSavedScore] = useState<number | null>(null);
 
   const validQuestions = questions.filter(
-    (q) => q.review_status === "validado" && q.study_cards && q.study_cards.length > 0
+    (q) =>
+      q.review_status === "validado" &&
+      q.study_cards &&
+      q.study_cards.length > 0
   );
 
   const subjects = useMemo(
     () =>
       Array.from(
-        new Set(validQuestions.map((q) => q.subject_confirmed || q.subject || "Sem disciplina"))
+        new Set(
+          validQuestions.map(
+            (q) => q.subject_confirmed || q.subject || "Sem disciplina"
+          )
+        )
       ).sort(),
     [validQuestions]
   );
@@ -210,9 +207,10 @@ function CardsStudyContent() {
     const list: FlashcardItem[] = [];
 
     validQuestions.forEach((question) => {
-      const matchesSubject =
-        !subject ||
-        (question.subject_confirmed || question.subject || "Sem disciplina") === subject;
+      const questionSubject =
+        question.subject_confirmed || question.subject || "Sem disciplina";
+
+      const matchesSubject = !subject || questionSubject === subject;
 
       if (!matchesSubject) return;
 
@@ -221,7 +219,7 @@ function CardsStudyContent() {
           id: `${question.id}-${index}`,
           questionId: question.id,
           questionNumber: question.number,
-          subject: question.subject_confirmed || question.subject || "Sem disciplina",
+          subject: questionSubject,
           mainTopic: question.main_topic || question.topic,
           cardTitle: card.title,
           front: card.front,
@@ -234,6 +232,7 @@ function CardsStudyContent() {
   }, [validQuestions, subject]);
 
   const currentCard = cards[currentIndex] || null;
+
   const currentQuestion =
     questions.find((q) => q.id === currentCard?.questionId) || null;
 
@@ -292,9 +291,13 @@ function CardsStudyContent() {
   return (
     <div className="grid">
       <div className="card">
-        <div className="actions" style={{ justifyContent: "space-between", marginTop: 0 }}>
+        <div
+          className="actions"
+          style={{ justifyContent: "space-between", marginTop: 0 }}
+        >
           <div>
             <h1>Estudo por cards</h1>
+
             <p className="lead">
               Responda os cards em formato de pergunta e resposta e compare sua
               resposta com a resposta esperada.
@@ -309,12 +312,14 @@ function CardsStudyContent() {
         <div className="form-row" style={{ marginTop: 16 }}>
           <div>
             <label>Disciplina</label>
+
             <select
               className="select"
               value={subject}
               onChange={(e) => handleResetFilter(e.target.value)}
             >
               <option value="">Todas</option>
+
               {subjects.map((item) => (
                 <option key={item} value={item}>
                   {item}
@@ -325,14 +330,24 @@ function CardsStudyContent() {
 
           <div>
             <label>Total de cards</label>
-            <input className="input" value={`${cards.length} card(s)`} readOnly />
+
+            <input
+              className="input"
+              value={`${cards.length} card(s)`}
+              readOnly
+            />
           </div>
 
           <div>
             <label>Posição</label>
+
             <input
               className="input"
-              value={cards.length > 0 ? `${currentIndex + 1} de ${cards.length}` : "0 de 0"}
+              value={
+                cards.length > 0
+                  ? `${currentIndex + 1} de ${cards.length}`
+                  : "0 de 0"
+              }
               readOnly
             />
           </div>
@@ -342,7 +357,8 @@ function CardsStudyContent() {
       {!currentCard ? (
         <div className="card">
           <p className="muted">
-            Nenhum card encontrado. Gere explicações/cards nas questões antes de usar esta área.
+            Nenhum card encontrado. Gere explicações/cards nas questões antes de
+            usar esta área.
           </p>
         </div>
       ) : (
@@ -352,8 +368,14 @@ function CardsStudyContent() {
               <div className="flashcard-topline">
                 <div className="flashcard-meta">
                   <span className="badge">{currentCard.subject}</span>
-                  {currentCard.mainTopic && <span className="badge">{currentCard.mainTopic}</span>}
-                  <span className="badge">Questão {currentCard.questionNumber}</span>
+
+                  {currentCard.mainTopic && (
+                    <span className="badge">{currentCard.mainTopic}</span>
+                  )}
+
+                  <span className="badge">
+                    Questão {currentCard.questionNumber}
+                  </span>
                 </div>
 
                 <h2>{currentCard.cardTitle}</h2>
@@ -361,12 +383,14 @@ function CardsStudyContent() {
 
               <div className="flashcard-side">
                 <h3>Pergunta</h3>
+
                 <p>{currentCard.front}</p>
               </div>
 
               {!revealed ? (
                 <div className="flashcard-answer-box">
                   <label>Sua resposta</label>
+
                   <textarea
                     className="textarea"
                     value={userAnswer}
@@ -389,11 +413,13 @@ function CardsStudyContent() {
                 <div className="flashcard-result-grid">
                   <div className="flashcard-side">
                     <h3>Sua resposta</h3>
+
                     <p>{userAnswer}</p>
                   </div>
 
                   <div className="flashcard-side">
                     <h3>Resposta esperada</h3>
+
                     <p>{currentCard.back}</p>
                   </div>
 
@@ -404,16 +430,20 @@ function CardsStudyContent() {
 
                     <div>
                       <strong>{getScoreLabel(savedScore || 0)}</strong>
+
                       <p className="muted small" style={{ marginTop: 6 }}>
-                        A porcentagem é baseada na similaridade entre sua resposta
-                        e a resposta esperada do sistema.
+                        A porcentagem é baseada na similaridade entre sua
+                        resposta e a resposta esperada do sistema.
                       </p>
                     </div>
                   </div>
                 </div>
               )}
 
-              <div className="actions" style={{ justifyContent: "space-between" }}>
+              <div
+                className="actions"
+                style={{ justifyContent: "space-between" }}
+              >
                 <button
                   className="btn secondary"
                   onClick={handlePrev}
@@ -442,9 +472,12 @@ function CardsStudyContent() {
           {currentQuestion && (
             <div className="card">
               <h2>Anotações da questão</h2>
+
               <p className="muted">
                 Questão {currentQuestion.number} •{" "}
-                {currentQuestion.subject_confirmed || currentQuestion.subject || "Sem disciplina"}
+                {currentQuestion.subject_confirmed ||
+                  currentQuestion.subject ||
+                  "Sem disciplina"}
               </p>
 
               <textarea
@@ -456,7 +489,8 @@ function CardsStudyContent() {
               />
 
               <p className="muted small" style={{ marginTop: 10 }}>
-                As anotações são salvas automaticamente quando você sai do campo.
+                As anotações são salvas automaticamente quando você sai do
+                campo.
               </p>
             </div>
           )}
