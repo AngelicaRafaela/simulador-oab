@@ -38,15 +38,43 @@ function expandSynonyms(text: string) {
     [/\be vedado\b/g, "vedado proibido nao permitido"],
     [/\bvedada\b/g, "vedado proibido nao permitido"],
     [/\bvedado\b/g, "vedado proibido nao permitido"],
+
+    [/\bpode realizar\b/g, "pode permitido possibilidade realizar"],
+    [/\bse pode\b/g, "pode permitido possibilidade"],
+    [/\bpoderia\b/g, "pode permitido possibilidade"],
+    [/\bpermitiria\b/g, "pode permitido possibilidade"],
+    [/\bpermite\b/g, "pode permitido possibilidade"],
+    [/\bpermitido\b/g, "pode permitido possibilidade"],
+    [/\bpermissao\b/g, "pode permitido possibilidade"],
+    [/\bpossibilidade\b/g, "pode permitido possibilidade"],
+
+    [/\bparece que\b/g, "aparenta parece pegadinha induz erro"],
+    [/\bparece\b/g, "aparenta parece pegadinha induz erro"],
+    [/\bem alguns casos\b/g, "excecao possibilidade alguns casos"],
+    [/\bexcecao\b/g, "excecao possibilidade alguns casos"],
+    [/\bcasos\b/g, "casos possibilidade excecao"],
+
     [/\bdivulgacao\b/g, "divulgacao publicidade anunciar"],
     [/\bdivulgar\b/g, "divulgacao publicidade anunciar"],
     [/\bpublicidade\b/g, "divulgacao publicidade anunciar"],
+
     [/\badvocacia\b/g, "advocacia servicos advocaticios advogado"],
     [/\badvocaticios\b/g, "advocacia servicos advocaticios advogado"],
     [/\bservicos juridicos\b/g, "advocacia servicos advocaticios juridicos"],
+
+    [/\batividade afim\b/g, "atividade afim complementar consultoria empresarial"],
+    [/\batividades afins\b/g, "atividade afim complementar consultoria empresarial"],
+    [/\bconsultoria\b/g, "consultoria empresarial atividade afim"],
+    [/\bconsultoria empresarial\b/g, "consultoria empresarial atividade afim"],
+
     [/\boutra atividade\b/g, "outra atividade atividade diversa conjunto"],
     [/\boutras atividades\b/g, "outra atividade atividade diversa conjunto"],
-    [/\bem conjunto\b/g, "conjunto junto juntamente"]
+    [/\bem conjunto\b/g, "conjunto junto juntamente"],
+    [/\bjunto\b/g, "conjunto junto juntamente"],
+
+    [/\bsobria\b/g, "sobriedade discreta publicidade"],
+    [/\bsobrio\b/g, "sobriedade discreta publicidade"],
+    [/\bsobriedade\b/g, "sobriedade discreta publicidade"]
   ];
 
   for (const [pattern, replacement] of replacements) {
@@ -126,12 +154,96 @@ function calculateSimilarity(userAnswer: string, expectedAnswer: string) {
       normalizedUser.includes("atividade") ||
       normalizedUser.includes("conjunto");
 
-    if (userMentionsCore) {
-      return 90;
-    }
+    if (userMentionsCore) return 90;
 
     return 75;
   }
+
+  const userMentionsFalsePermission =
+    normalizedUser.includes("parece") ||
+    normalizedUser.includes("aparenta") ||
+    normalizedUser.includes("possibilidade") ||
+    normalizedUser.includes("pode permitido") ||
+    normalizedUser.includes("alguns casos") ||
+    normalizedUser.includes("excecao");
+
+  const expectedMentionsFalsePermission =
+    normalizedExpected.includes("pensar") ||
+    normalizedExpected.includes("pegadinha") ||
+    normalizedExpected.includes("permitiriam") ||
+    normalizedExpected.includes("pode permitido") ||
+    normalizedExpected.includes("possibilidade") ||
+    normalizedExpected.includes("atividades afins") ||
+    normalizedExpected.includes("sobriedade");
+
+  const expectedMentionsProhibition =
+    normalizedExpected.includes("proibe") ||
+    normalizedExpected.includes("vedado") ||
+    normalizedExpected.includes("proibido") ||
+    normalizedExpected.includes("nao permitido");
+
+  if (
+    userMentionsFalsePermission &&
+    expectedMentionsFalsePermission &&
+    expectedMentionsProhibition
+  ) {
+    const userMentionsContext =
+      normalizedUser.includes("atividade") ||
+      normalizedUser.includes("publicidade") ||
+      normalizedUser.includes("advocacia") ||
+      normalizedUser.includes("consultoria") ||
+      normalizedUser.includes("casos");
+
+    return userMentionsContext ? 75 : 65;
+  }
+
+  const userTokens = getKeywords(userAnswer);
+  const expectedTokens = getKeywords(expectedAnswer);
+
+  if (userTokens.length === 0 || expectedTokens.length === 0) {
+    return 0;
+  }
+
+  const userSet = new Set(userTokens);
+  const expectedSet = new Set(expectedTokens);
+
+  let intersections = 0;
+
+  expectedSet.forEach((token) => {
+    if (userSet.has(token)) {
+      intersections++;
+    }
+  });
+
+  const expectedCoverage = intersections / expectedSet.size;
+  const userCoverage = intersections / userSet.size;
+
+  let score = Math.round(
+    (expectedCoverage * 0.55 + userCoverage * 0.45) * 100
+  );
+
+  if (score < 40 && userTokens.length >= 5) {
+    const userHasNegationOrPossibility =
+      normalizedUser.includes("nao") ||
+      normalizedUser.includes("pode") ||
+      normalizedUser.includes("possibilidade") ||
+      normalizedUser.includes("parece") ||
+      normalizedUser.includes("casos");
+
+    const expectedHasNormativeIdea =
+      normalizedExpected.includes("proibido") ||
+      normalizedExpected.includes("vedado") ||
+      normalizedExpected.includes("permitido") ||
+      normalizedExpected.includes("possibilidade") ||
+      normalizedExpected.includes("pegadinha");
+
+    if (userHasNegationOrPossibility && expectedHasNormativeIdea) {
+      score = Math.max(score, 45);
+    }
+  }
+
+  return Math.max(0, Math.min(score, 100));
+}
 
   const userTokens = getKeywords(userAnswer);
   const expectedTokens = getKeywords(expectedAnswer);
