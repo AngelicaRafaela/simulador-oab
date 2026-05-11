@@ -1,185 +1,423 @@
-import { GoogleGenAI } from "@google/genai";
-import { NextResponse } from "next/server";
+"use client";
 
-export const runtime = "nodejs";
+import { useMemo, useState } from "react";
+import { ClientOnly } from "@/components/ClientOnly";
 
-function extractJson(text: string) {
-  const cleaned = text
-    .replace(/^\uFEFF/, "")
-    .replace(/^```json\s*/i, "")
-    .replace(/^```\s*/i, "")
-    .replace(/```\s*$/i, "")
-    .trim();
+type StudyTopic = {
+  title: string;
+  short_summary: string;
+  deep_explanation: string;
+  key_points: string[];
+  oab_attention: string;
+  legal_references: string[];
+};
+
+type StudyMaterial = {
+  id: string;
+  title: string;
+  discipline: string;
+  main_topic: string;
+  source_file_name: string;
+  summary: string;
+  study_objective: string;
+  topics: StudyTopic[];
+  suggested_study_order: string[];
+  review_checklist: string[];
+  created_at: string;
+  updated_at: string;
+};
+
+const STORAGE_KEY = "oab-study-materials-v1";
+
+function loadMaterials(): StudyMaterial[] {
+  if (typeof window === "undefined") return [];
 
   try {
-    return JSON.parse(cleaned);
+    const raw = localStorage.getItem(STORAGE_KEY);
+    return raw ? JSON.parse(raw) : [];
   } catch {
-    const firstBrace = cleaned.indexOf("{");
-    const lastBrace = cleaned.lastIndexOf("}");
+    return [];
+  }
+}
 
-    if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
-      const jsonCandidate = cleaned.slice(firstBrace, lastBrace + 1);
+function saveMaterials(materials: StudyMaterial[]) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(materials));
+}
 
-      try {
-        return JSON.parse(jsonCandidate);
-      } catch {
-        return null;
+function MateriaisContent() {
+  const [materials, setMaterials] = useState<StudyMaterial[]>(loadMaterials);
+  const [selectedId, setSelectedId] = useState("");
+  const [selectedTopicIndex, setSelectedTopicIndex] = useState(0);
+  const [disciplineFilter, setDisciplineFilter] = useState("");
+  const [file, setFile] = useState<File | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState("");
+  const [error, setError] = useState("");
+
+  const disciplines = useMemo(
+    () =>
+      Array.from(new Set(materials.map((item) => item.discipline))).sort(),
+    [materials]
+  );
+
+  const filteredMaterials = useMemo(() => {
+    return materials.filter(
+      (item) => !disciplineFilter || item.discipline === disciplineFilter
+    );
+  }, [materials, disciplineFilter]);
+
+  const selectedMaterial =
+    materials.find((item) => item.id === selectedId) ||
+    filteredMaterials[0] ||
+    null;
+
+  const selectedTopic =
+    selectedMaterial?.topics?.[selectedTopicIndex] ||
+    selectedMaterial?.topics?.[0] ||
+    null;
+
+  const handleUpload = async () => {
+    if (!file) {
+      setError("Selecione um PDF antes de enviar.");
+      return;
+    }
+
+    setLoading(true);
+    setError("");
+    setMessage("");
+
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const response = await fetch("/api/materials/analyze", {
+        method: "POST",
+        body: formData
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data?.error || "Erro ao analisar o PDF.");
       }
-    }
 
-    return null;
-  }
+      const nextMaterials = [data as StudyMaterial, ...materials];
+
+      setMaterials(nextMaterials);
+      saveMaterials(nextMaterials);
+      setSelectedId(data.id);
+      setSelectedTopicIndex(0);
+      setFile(null);
+      setMessage("PDF analisado e material de estudo criado com sucesso.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Erro ao enviar o PDF.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDelete = (id: string) => {
+    const confirmDelete = window.confirm(
+      "Deseja excluir este material de estudo?"
+    );
+
+    if (!confirmDelete) return;
+
+    const next = materials.filter((item) => item.id !== id);
+
+    setMaterials(next);
+    saveMaterials(next);
+    setSelectedId("");
+    setSelectedTopicIndex(0);
+  };
+
+  return (
+    <div className="materials-page">
+      <section className="card">
+        <div
+          className="actions"
+          style={{
+            justifyContent: "space-between",
+            alignItems: "flex-start",
+            marginTop: 0
+          }}
+        >
+          <div>
+            <h1>Estudo aprofundado</h1>
+
+            <p className="lead">
+              Envie PDFs de estudo para a IA transformar em resumos, matérias e
+              tópicos aprofundados.
+            </p>
+          </div>
+        </div>
+
+        <div className="form-row" style={{ marginTop: 16 }}>
+          <div>
+            <label>PDF de estudo</label>
+
+            <input
+              className="input"
+              type="file"
+              accept="application/pdf"
+              onChange={(event) => setFile(event.target.files?.[0] || null)}
+            />
+          </div>
+
+          <div>
+            <label>Filtro por disciplina</label>
+
+            <select
+              className="select"
+              value={disciplineFilter}
+              onChange={(event) => {
+                setDisciplineFilter(event.target.value);
+                setSelectedId("");
+                setSelectedTopicIndex(0);
+              }}
+            >
+              <option value="">Todas</option>
+
+              {disciplines.map((discipline) => (
+                <option key={discipline} value={discipline}>
+                  {discipline}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label>Ação</label>
+
+            <button className="btn" onClick={handleUpload} disabled={loading}>
+              {loading ? "Analisando PDF..." : "Enviar e analisar PDF"}
+            </button>
+          </div>
+        </div>
+
+        {message && (
+          <div className="success" style={{ marginTop: 16 }}>
+            {message}
+          </div>
+        )}
+
+        {error && (
+          <div className="error" style={{ marginTop: 16 }}>
+            {error}
+          </div>
+        )}
+      </section>
+
+      {filteredMaterials.length === 0 ? (
+        <section className="card">
+          <p className="muted">
+            Nenhum material encontrado. Envie um PDF para gerar um estudo
+            aprofundado.
+          </p>
+        </section>
+      ) : (
+        <section className="materials-layout">
+          <aside className="materials-sidebar card">
+            <h2>Materiais</h2>
+
+            <div className="materials-list">
+              {filteredMaterials.map((material) => (
+                <button
+                  key={material.id}
+                  className={`material-list-item ${
+                    selectedMaterial?.id === material.id ? "active" : ""
+                  }`}
+                  onClick={() => {
+                    setSelectedId(material.id);
+                    setSelectedTopicIndex(0);
+                  }}
+                >
+                  <strong>{material.main_topic}</strong>
+                  <span>{material.discipline}</span>
+                  <small>{material.source_file_name}</small>
+                </button>
+              ))}
+            </div>
+          </aside>
+
+          {selectedMaterial && (
+            <main className="materials-content">
+              <section className="card">
+                <div
+                  className="actions"
+                  style={{
+                    justifyContent: "space-between",
+                    alignItems: "flex-start",
+                    marginTop: 0
+                  }}
+                >
+                  <div>
+                    <span className="badge">
+                      {selectedMaterial.discipline}
+                    </span>
+
+                    <h2 style={{ marginTop: 12 }}>
+                      {selectedMaterial.main_topic}
+                    </h2>
+
+                    <p className="muted">
+                      Fonte: {selectedMaterial.source_file_name}
+                    </p>
+                  </div>
+
+                  <button
+                    className="btn danger"
+                    onClick={() => handleDelete(selectedMaterial.id)}
+                  >
+                    Excluir
+                  </button>
+                </div>
+
+                {selectedMaterial.summary && (
+                  <>
+                    <div className="divider" />
+
+                    <h3>Resumo geral</h3>
+
+                    <p style={{ lineHeight: 1.8 }}>
+                      {selectedMaterial.summary}
+                    </p>
+                  </>
+                )}
+
+                {selectedMaterial.study_objective && (
+                  <div className="notice">
+                    <strong>Objetivo do estudo:</strong>{" "}
+                    {selectedMaterial.study_objective}
+                  </div>
+                )}
+              </section>
+
+              <section className="materials-topic-layout">
+                <aside className="card">
+                  <h3>Tópicos</h3>
+
+                  <div className="materials-topic-list">
+                    {selectedMaterial.topics.map((topic, index) => (
+                      <button
+                        key={`${topic.title}-${index}`}
+                        className={`topic-button ${
+                          selectedTopicIndex === index ? "active" : ""
+                        }`}
+                        onClick={() => setSelectedTopicIndex(index)}
+                      >
+                        {topic.title}
+                      </button>
+                    ))}
+                  </div>
+                </aside>
+
+                <article className="card">
+                  {!selectedTopic ? (
+                    <p className="muted">
+                      Nenhum tópico encontrado neste material.
+                    </p>
+                  ) : (
+                    <>
+                      <h2>{selectedTopic.title}</h2>
+
+                      <p className="lead">{selectedTopic.short_summary}</p>
+
+                      <div className="divider" />
+
+                      <h3>Aprofundamento</h3>
+
+                      <p style={{ lineHeight: 1.85 }}>
+                        {selectedTopic.deep_explanation}
+                      </p>
+
+                      {selectedTopic.key_points?.length > 0 && (
+                        <>
+                          <div className="divider" />
+
+                          <h3>Pontos importantes</h3>
+
+                          <ul className="material-list">
+                            {selectedTopic.key_points.map((point, index) => (
+                              <li key={`${point}-${index}`}>{point}</li>
+                            ))}
+                          </ul>
+                        </>
+                      )}
+
+                      {selectedTopic.oab_attention && (
+                        <>
+                          <div className="divider" />
+
+                          <div className="notice">
+                            <strong>Atenção para OAB:</strong>{" "}
+                            {selectedTopic.oab_attention}
+                          </div>
+                        </>
+                      )}
+
+                      {selectedTopic.legal_references?.length > 0 && (
+                        <>
+                          <div className="divider" />
+
+                          <h3>Base legal citada</h3>
+
+                          <div className="actions">
+                            {selectedTopic.legal_references.map(
+                              (reference, index) => (
+                                <span
+                                  className="badge"
+                                  key={`${reference}-${index}`}
+                                >
+                                  {reference}
+                                </span>
+                              )
+                            )}
+                          </div>
+                        </>
+                      )}
+                    </>
+                  )}
+                </article>
+              </section>
+
+              {selectedMaterial.suggested_study_order?.length > 0 && (
+                <section className="card">
+                  <h3>Ordem sugerida de estudo</h3>
+
+                  <ol className="material-list">
+                    {selectedMaterial.suggested_study_order.map(
+                      (item, index) => (
+                        <li key={`${item}-${index}`}>{item}</li>
+                      )
+                    )}
+                  </ol>
+                </section>
+              )}
+
+              {selectedMaterial.review_checklist?.length > 0 && (
+                <section className="card">
+                  <h3>Checklist de revisão</h3>
+
+                  <ul className="material-list">
+                    {selectedMaterial.review_checklist.map((item, index) => (
+                      <li key={`${item}-${index}`}>{item}</li>
+                    ))}
+                  </ul>
+                </section>
+              )}
+            </main>
+          )}
+        </section>
+      )}
+    </div>
+  );
 }
 
-export async function POST(request: Request) {
-  const apiKey = process.env.GEMINI_API_KEY;
-
-  if (!apiKey) {
-    return NextResponse.json(
-      { error: "GEMINI_API_KEY não configurada na Vercel." },
-      { status: 400 }
-    );
-  }
-
-  try {
-    const formData = await request.formData();
-    const file = formData.get("file");
-
-    if (!(file instanceof File)) {
-      return NextResponse.json(
-        { error: "Nenhum PDF foi enviado." },
-        { status: 400 }
-      );
-    }
-
-    if (!file.type.includes("pdf")) {
-      return NextResponse.json(
-        { error: "Envie apenas arquivos PDF." },
-        { status: 400 }
-      );
-    }
-
-    const arrayBuffer = await file.arrayBuffer();
-    const base64 = Buffer.from(arrayBuffer).toString("base64");
-
-    const prompt = `
-Você é um professor especialista em preparação para a 1ª fase da OAB.
-
-Analise o PDF enviado e transforme o conteúdo em um material de estudo aprofundado.
-
-OBJETIVO:
-Criar um material organizado por disciplina, matéria e tópicos clicáveis, sem formato de perguntas. O conteúdo deve servir para estudo teórico.
-
-REGRAS:
-- Responda em português do Brasil.
-- Não use emojis.
-- Não invente artigos, leis, súmulas ou jurisprudência.
-- Se o PDF não indicar a base legal com segurança, deixe a referência vazia.
-- Organize o conteúdo para uma pessoa que está estudando para a OAB.
-- Seja didático.
-- Separe explicação geral e aprofundamento.
-- Quando possível, indique pontos que costumam cair em prova.
-- Não transforme o material em simulado.
-- Não crie perguntas objetivas.
-- O foco é resumo, aprofundamento e organização por tópicos.
-
-RETORNE SOMENTE JSON VÁLIDO, SEM MARKDOWN E SEM TEXTO FORA DO JSON.
-
-Formato obrigatório:
-{
-  "title": "Título do material de estudo",
-  "discipline": "Disciplina principal, por exemplo: Direito Constitucional",
-  "main_topic": "Matéria principal, por exemplo: Controle de Constitucionalidade",
-  "source_file_name": "${file.name}",
-  "summary": "Resumo geral do PDF em linguagem didática.",
-  "study_objective": "O que o aluno deve dominar após estudar este material.",
-  "topics": [
-    {
-      "title": "Nome do tópico",
-      "short_summary": "Resumo curto do tópico.",
-      "deep_explanation": "Explicação aprofundada e didática sobre o tópico.",
-      "key_points": [
-        "Ponto importante 1",
-        "Ponto importante 2"
-      ],
-      "oab_attention": "O que costuma ser cobrado ou confundido em prova.",
-      "legal_references": [
-        "Base legal segura, se houver"
-      ]
-    }
-  ],
-  "suggested_study_order": [
-    "Tópico 1",
-    "Tópico 2"
-  ],
-  "review_checklist": [
-    "Item que o aluno deve revisar",
-    "Outro item importante"
-  ]
-}
-`;
-
-    const ai = new GoogleGenAI({ apiKey });
-    const modelName = process.env.GEMINI_MODEL || "gemini-2.5-flash";
-
-    const response = await ai.models.generateContent({
-      model: modelName,
-      contents: [
-        {
-          role: "user",
-          parts: [
-            { text: prompt },
-            {
-              inlineData: {
-                mimeType: file.type || "application/pdf",
-                data: base64
-              }
-            }
-          ]
-        }
-      ]
-    });
-
-    const text = response.text || "";
-    const parsed = extractJson(text);
-
-    if (!parsed) {
-      return NextResponse.json(
-        {
-          error: "A IA não retornou JSON válido.",
-          raw: text
-        },
-        { status: 502 }
-      );
-    }
-
-    return NextResponse.json({
-      id: `mat-${Date.now()}`,
-      title: parsed.title || file.name,
-      discipline: parsed.discipline || "Sem disciplina",
-      main_topic: parsed.main_topic || "Sem matéria definida",
-      source_file_name: file.name,
-      summary: parsed.summary || "",
-      study_objective: parsed.study_objective || "",
-      topics: Array.isArray(parsed.topics) ? parsed.topics : [],
-      suggested_study_order: Array.isArray(parsed.suggested_study_order)
-        ? parsed.suggested_study_order
-        : [],
-      review_checklist: Array.isArray(parsed.review_checklist)
-        ? parsed.review_checklist
-        : [],
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
-    });
-  } catch (error) {
-    return NextResponse.json(
-      {
-        error:
-          error instanceof Error
-            ? error.message
-            : "Erro ao analisar o PDF."
-      },
-      { status: 500 }
-    );
-  }
+export default function MateriaisPage() {
+  return (
+    <ClientOnly>
+      <MateriaisContent />
+    </ClientOnly>
+  );
 }
