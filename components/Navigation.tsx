@@ -13,6 +13,7 @@ export function Navigation() {
           <Link href="/importar">Importar</Link>
           <Link href="/banco">Banco</Link>
           <Link href="/estudo">Estudo</Link>
+	  <Link href="/materiais">Materiais</Link>
           <Link href="/simulado">Simulado</Link>
           <Link href="/revisao">Revisão</Link>
         </nav>
