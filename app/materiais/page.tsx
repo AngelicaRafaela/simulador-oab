@@ -90,48 +90,145 @@ const handleUpload = async () => {
     const text = await file.text();
     const parsed = JSON.parse(text);
 
+    const topicsFromAssuntos = Array.isArray(parsed.assuntos)
+      ? parsed.assuntos.map((assunto: any) => {
+          const partes: string[] = [];
+
+          if (Array.isArray(assunto.resumo)) {
+            partes.push(assunto.resumo.join("\n\n"));
+          }
+
+          if (assunto.classificacoes) {
+            partes.push(
+              Object.entries(assunto.classificacoes)
+                .map(([criterio, valor]) => {
+                  return `${criterio}: ${JSON.stringify(valor, null, 2)}`;
+                })
+                .join("\n\n")
+            );
+          }
+
+          if (assunto.elementos) {
+            partes.push(
+              Object.entries(assunto.elementos)
+                .map(([nome, valor]) => `${nome}: ${valor}`)
+                .join("\n\n")
+            );
+          }
+
+          if (assunto.funcoes) {
+            partes.push(
+              Object.entries(assunto.funcoes)
+                .map(([nome, valor]) => `${nome}: ${JSON.stringify(valor, null, 2)}`)
+                .join("\n\n")
+            );
+          }
+
+          if (assunto.tipos) {
+            partes.push(
+              Object.entries(assunto.tipos)
+                .map(([nome, valor]) => `${nome}: ${valor}`)
+                .join("\n\n")
+            );
+          }
+
+          if (assunto.topicos) {
+            partes.push(
+              Object.entries(assunto.topicos)
+                .map(([nome, valor]) => `${nome}: ${JSON.stringify(valor, null, 2)}`)
+                .join("\n\n")
+            );
+          }
+
+          if (Array.isArray(assunto.pontos_de_estudo)) {
+            partes.push(
+              assunto.pontos_de_estudo
+                .map((ponto: any) => {
+                  return `${ponto.topico || ponto.titulo || "Ponto de estudo"}${
+                    ponto.autor ? ` - ${ponto.autor}` : ""
+                  }: ${ponto.conteudo || ""}`;
+                })
+                .join("\n\n")
+            );
+          }
+
+          if (Array.isArray(assunto.atencao)) {
+            partes.push(`Atenção:\n${assunto.atencao.join("\n")}`);
+          }
+
+          return {
+            title: assunto.tema || assunto.titulo || "Tópico sem título",
+            short_summary: Array.isArray(assunto.resumo)
+              ? assunto.resumo.join(" ")
+              : assunto.resumo || "",
+            deep_explanation: partes.join("\n\n"),
+            key_points: Array.isArray(assunto.resumo) ? assunto.resumo : [],
+            oab_attention: Array.isArray(assunto.atencao)
+              ? assunto.atencao.join(" ")
+              : "",
+            legal_references: assunto.paginas
+              ? [`Páginas ${assunto.paginas.join(", ")} do material enviado`]
+              : []
+          };
+        })
+      : [];
+
+    const topics = Array.isArray(parsed.topics)
+      ? parsed.topics
+      : Array.isArray(parsed.topicos)
+        ? parsed.topicos
+        : topicsFromAssuntos;
+
     const material: StudyMaterial = {
       id: parsed.id || `mat-${Date.now()}`,
-      title: parsed.title || parsed.documento?.titulo || file.name,
+      title:
+        parsed.title ||
+        parsed.titulo ||
+        parsed.documento?.titulo ||
+        "Material de estudo",
       discipline:
         parsed.discipline ||
         parsed.disciplina ||
-        parsed.documento?.disciplina ||
-        "Sem disciplina",
+        "Direito Constitucional",
       main_topic:
         parsed.main_topic ||
         parsed.materia ||
-        parsed.topico ||
-        parsed.documento?.conteudo?.[0]?.topico ||
-        "Sem matéria definida",
-      source_file_name: parsed.source_file_name || file.name,
-      summary: parsed.summary || parsed.resumo || "",
+        parsed.assuntos?.[0]?.tema ||
+        "Material importado",
+      source_file_name:
+        parsed.source_file_name ||
+        parsed.fonte?.arquivo ||
+        file.name,
+      summary:
+        parsed.summary ||
+        parsed.resumo ||
+        `Material importado com ${topics.length} tópico(s) de estudo.`,
       study_objective:
         parsed.study_objective ||
         parsed.objetivo_estudo ||
         "Estudar e revisar os principais pontos do material.",
-      topics: Array.isArray(parsed.topics)
-        ? parsed.topics
-        : Array.isArray(parsed.topicos)
-          ? parsed.topicos
-          : [],
+      topics,
       suggested_study_order: Array.isArray(parsed.suggested_study_order)
         ? parsed.suggested_study_order
         : Array.isArray(parsed.ordem_estudo)
           ? parsed.ordem_estudo
-          : [],
+          : Array.isArray(parsed.assuntos)
+            ? parsed.assuntos.map((assunto: any) => assunto.tema).filter(Boolean)
+            : [],
       review_checklist: Array.isArray(parsed.review_checklist)
         ? parsed.review_checklist
         : Array.isArray(parsed.checklist_revisao)
           ? parsed.checklist_revisao
-          : [],
+          : Array.isArray(parsed.checklist_oab)
+            ? parsed.checklist_oab
+            : [],
       created_at: parsed.created_at || new Date().toISOString(),
       updated_at: new Date().toISOString()
     };
 
     if (!material.topics || material.topics.length === 0) {
       throw new Error(
-        "O JSON foi lido, mas não possui a lista 'topics'. Verifique a estrutura do arquivo."
+        "O JSON foi lido, mas não possui tópicos reconhecíveis. Use 'topics', 'topicos' ou 'assuntos'."
       );
     }
 
