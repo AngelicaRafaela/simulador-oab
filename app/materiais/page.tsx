@@ -91,15 +91,26 @@ function MateriaisContent() {
       formData.append("file", file);
 
       const response = await fetch("/api/materials/analyze", {
-        method: "POST",
-        body: formData
-      });
+  method: "POST",
+  body: formData
+});
 
-      const data = await response.json();
+const rawText = await response.text();
 
-      if (!response.ok) {
-        throw new Error(data?.error || "Erro ao analisar o PDF.");
-      }
+let data: any = null;
+
+try {
+  data = JSON.parse(rawText);
+} catch {
+  throw new Error(
+    rawText?.slice(0, 300) ||
+      "A API retornou uma resposta inválida. Verifique os logs da Vercel."
+  );
+}
+
+if (!response.ok) {
+  throw new Error(data?.error || "Erro ao analisar o PDF.");
+}
 
       const nextMaterials = [data as StudyMaterial, ...materials];
 
