@@ -440,7 +440,7 @@ const handleUpload = async () => {
         parsed.summary ||
         parsed.resumo ||
         parsed.fonte?.observacao ||
-        `Material importado com ${topics.length} tópico(s) de estudo.`,
+        `Material importado com ${topics.length} matéria(s) de estudo.`,
       study_objective:
         parsed.study_objective ||
         parsed.objetivo_estudo ||
@@ -667,7 +667,7 @@ const handleUpload = async () => {
 
               <section className="materials-topic-layout">
                 <aside className="card">
-                  <h3>Tópicos</h3>
+                  <h3>Matérias</h3>
 
                   <div className="materials-topic-list">
                     {selectedMaterial.topics.map((topic, index) => (
@@ -687,15 +687,17 @@ const handleUpload = async () => {
                 <article className="card">
                   {!selectedTopic ? (
                     <p className="muted">
-                      Nenhum tópico encontrado neste material.
+                      Nenhuma matéria encontrada neste material.
                     </p>
                   ) : (
                     <>
-                      <h2>{selectedTopic.title}</h2>
+                      <span className="badge">{selectedMaterial.discipline}</span>
 
-                      <p className="lead">{selectedTopic.short_summary}</p>
+<h2>{selectedTopic.title}</h2>
 
-                      <div className="divider" />
+<p className="muted">
+  Matéria dentro de {selectedMaterial.discipline}
+</p>
 
                       {selectedTopic.sections && selectedTopic.sections.length > 0 ? (
   <>
