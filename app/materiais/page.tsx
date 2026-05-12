@@ -233,7 +233,36 @@ const prettifyLabel = (value: string) => {
 "Maior De 16": "Maior de 16 anos",
 "Trabalhador Avulso": "Trabalhador avulso",
 "Trabalhador Domestico": "Trabalhador doméstico",
-"Direitos Previstos No Pdf": "Direitos previstos no PDF"
+"Direitos Previstos No Pdf": "Direitos previstos no PDF",
+"Pontos Oab": "Pontos OAB",
+"Remedios": "Remédios",
+"Remedios Constitucionais": "Remédios constitucionais",
+"Direitos": "Direitos",
+"Habeas Corpus": "Habeas corpus",
+"Habeas Data": "Habeas data",
+"Mandado De Seguranca": "Mandado de segurança",
+"Mandado De Seguranca Coletivo": "Mandado de segurança coletivo",
+"Mandado De Injuncao": "Mandado de injunção",
+"Acao Popular": "Ação popular",
+"Cabimento": "Cabimento",
+"Expressao Chave": "Expressão-chave",
+"Natureza": "Natureza",
+"Gratuito": "Gratuito",
+"Precisa De Advogado": "Precisa de advogado",
+"Partes": "Partes",
+"Impetrante": "Impetrante",
+"Paciente": "Paciente",
+"Impetrado Ou Autoridade Coatora": "Impetrado ou autoridade coatora",
+"Caracteristicas": "Características",
+"Especies": "Espécies",
+"Preventivo Ou Salvo Conduto": "Preventivo ou salvo-conduto",
+"Repressivo Ou Liberatorio": "Repressivo ou liberatório",
+"Lei": "Lei",
+"Atencao": "Atenção",
+"Legitimidade": "Legitimidade",
+"Observacoes": "Observações",
+"Nao Podem Propor": "Não podem propor",
+"Foro": "Foro"
   };
 
   return replacements[normalized] || normalized;
@@ -388,6 +417,27 @@ const assuntoToTopic = (assunto: any): StudyTopic => {
       items: formatValue(assunto.topicos)
     });
   }
+
+if (assunto.pontos_oab) {
+  sections.push({
+    title: "Pontos OAB",
+    items: formatValue(assunto.pontos_oab)
+  });
+}
+
+if (assunto.remedios) {
+  sections.push({
+    title: "Remédios constitucionais",
+    items: formatValue(assunto.remedios)
+  });
+}
+
+if (assunto.direitos) {
+  sections.push({
+    title: "Direitos trabalhistas",
+    items: formatValue(assunto.direitos)
+  });
+}
 
   if (Array.isArray(assunto.atencao)) {
     sections.push({
@@ -840,31 +890,29 @@ const handleUpload = async () => {
                 </article>
               </section>
 
-              {selectedMaterial.suggested_study_order?.length > 0 && (
-                <section className="card">
-                  <h3>Ordem sugerida de estudo</h3>
+              {!matterFilter && selectedMaterial.suggested_study_order?.length > 0 && (
+  <section className="card">
+    <h3>Ordem sugerida de estudo</h3>
 
-                  <ol className="material-list">
-                    {selectedMaterial.suggested_study_order.map(
-                      (item, index) => (
-                        <li key={`${item}-${index}`}>{item}</li>
-                      )
-                    )}
-                  </ol>
-                </section>
-              )}
+    <ol className="material-list">
+      {selectedMaterial.suggested_study_order.map((item, index) => (
+        <li key={`${item}-${index}`}>{item}</li>
+      ))}
+    </ol>
+  </section>
+)}
 
-              {selectedMaterial.review_checklist?.length > 0 && (
-                <section className="card">
-                  <h3>Checklist de revisão</h3>
+              {!matterFilter && selectedMaterial.review_checklist?.length > 0 && (
+  <section className="card">
+    <h3>Checklist de revisão</h3>
 
-                  <ul className="material-list">
-                    {selectedMaterial.review_checklist.map((item, index) => (
-                      <li key={`${item}-${index}`}>{item}</li>
-                    ))}
-                  </ul>
-                </section>
-              )}
+    <ul className="material-list">
+      {selectedMaterial.review_checklist.map((item, index) => (
+        <li key={`${item}-${index}`}>{item}</li>
+      ))}
+    </ul>
+  </section>
+)}
             </main>
           )}
         </section>
