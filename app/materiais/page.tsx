@@ -3,6 +3,11 @@
 import { useMemo, useState } from "react";
 import { ClientOnly } from "@/components/ClientOnly";
 
+type StudySection = {
+  title: string;
+  items: string[];
+};
+
 type StudyTopic = {
   title: string;
   short_summary: string;
@@ -10,6 +15,7 @@ type StudyTopic = {
   key_points: string[];
   oab_attention: string;
   legal_references: string[];
+  sections?: StudySection[];
 };
 
 type StudyMaterial = {
@@ -76,6 +82,171 @@ function MateriaisContent() {
     selectedMaterial?.topics?.[0] ||
     null;
 
+const formatValue = (value: any): string[] => {
+  if (!value) return [];
+
+  if (typeof value === "string") {
+    return [value];
+  }
+
+  if (Array.isArray(value)) {
+    return value.map((item) =>
+      typeof item === "string" ? item : JSON.stringify(item, null, 2)
+    );
+  }
+
+  if (typeof value === "object") {
+    return Object.entries(value).map(([key, item]) => {
+      const label = key
+        .replaceAll("_", " ")
+        .replace(/\b\w/g, (char) => char.toUpperCase());
+
+      if (typeof item === "string") {
+        return `${label}: ${item}`;
+      }
+
+      return `${label}: ${JSON.stringify(item, null, 2)}`;
+    });
+  }
+
+  return [String(value)];
+};
+
+const assuntoToTopic = (assunto: any): StudyTopic => {
+  const sections: StudySection[] = [];
+
+  if (Array.isArray(assunto.pontos_de_estudo)) {
+    sections.push({
+      title: "Pontos de estudo",
+      items: assunto.pontos_de_estudo.map((ponto: any) => {
+        const titulo = ponto.topico || ponto.titulo || "Ponto";
+        const autor = ponto.autor ? ` (${ponto.autor})` : "";
+        const conteudo = ponto.conteudo || "";
+
+        return `${titulo}${autor}: ${conteudo}`;
+      })
+    });
+  }
+
+  if (assunto.classificacoes) {
+    sections.push({
+      title: "Classificações",
+      items: formatValue(assunto.classificacoes)
+    });
+  }
+
+  if (assunto.elementos) {
+    sections.push({
+      title: "Elementos",
+      items: formatValue(assunto.elementos)
+    });
+  }
+
+  if (assunto.funcoes) {
+    sections.push({
+      title: "Funções",
+      items: formatValue(assunto.funcoes)
+    });
+  }
+
+  if (assunto.tipos) {
+    sections.push({
+      title: "Tipos",
+      items: formatValue(assunto.tipos)
+    });
+  }
+
+  if (assunto.preambulo) {
+    sections.push({
+      title: "Preâmbulo",
+      items: formatValue(assunto.preambulo)
+    });
+  }
+
+  if (assunto.adct) {
+    sections.push({
+      title: "ADCT",
+      items: formatValue(assunto.adct)
+    });
+  }
+
+  if (assunto.republica) {
+    sections.push({
+      title: "República",
+      items: formatValue(assunto.republica)
+    });
+  }
+
+  if (assunto.fundamentos_art_1) {
+    sections.push({
+      title: "Fundamentos do art. 1º",
+      items: formatValue(assunto.fundamentos_art_1)
+    });
+  }
+
+  if (assunto.democracia) {
+    sections.push({
+      title: "Democracia",
+      items: formatValue(assunto.democracia)
+    });
+  }
+
+  if (assunto.objetivos_art_3) {
+    sections.push({
+      title: "Objetivos do art. 3º",
+      items: formatValue(assunto.objetivos_art_3)
+    });
+  }
+
+  if (assunto.principios_relacoes_internacionais_art_4) {
+    sections.push({
+      title: "Relações internacionais",
+      items: formatValue(assunto.principios_relacoes_internacionais_art_4)
+    });
+  }
+
+  if (assunto.dimensoes) {
+    sections.push({
+      title: "Dimensões dos direitos fundamentais",
+      items: formatValue(assunto.dimensoes)
+    });
+  }
+
+  if (assunto.topicos) {
+    sections.push({
+      title: "Tópicos do art. 5º",
+      items: formatValue(assunto.topicos)
+    });
+  }
+
+  if (Array.isArray(assunto.atencao)) {
+    sections.push({
+      title: "Atenção para prova",
+      items: assunto.atencao
+    });
+  }
+
+  const resumo = Array.isArray(assunto.resumo)
+    ? assunto.resumo
+    : assunto.resumo
+      ? [assunto.resumo]
+      : [];
+
+  return {
+    title: assunto.tema || assunto.titulo || "Tópico sem título",
+    short_summary: resumo.join(" "),
+    deep_explanation: "",
+    key_points: resumo,
+    oab_attention: Array.isArray(assunto.atencao)
+      ? assunto.atencao.join(" ")
+      : "",
+    legal_references: assunto.paginas
+      ? [`Página(s) ${assunto.paginas.join(", ")} do material enviado`]
+      : [],
+    sections
+  };
+};
+
 const handleUpload = async () => {
   if (!file) {
     setError("Selecione um arquivo JSON antes de importar.");
@@ -90,94 +261,13 @@ const handleUpload = async () => {
     const text = await file.text();
     const parsed = JSON.parse(text);
 
-    const topicsFromAssuntos = Array.isArray(parsed.assuntos)
-      ? parsed.assuntos.map((assunto: any) => {
-          const partes: string[] = [];
-
-          if (Array.isArray(assunto.resumo)) {
-            partes.push(assunto.resumo.join("\n\n"));
-          }
-
-          if (assunto.classificacoes) {
-            partes.push(
-              Object.entries(assunto.classificacoes)
-                .map(([criterio, valor]) => {
-                  return `${criterio}: ${JSON.stringify(valor, null, 2)}`;
-                })
-                .join("\n\n")
-            );
-          }
-
-          if (assunto.elementos) {
-            partes.push(
-              Object.entries(assunto.elementos)
-                .map(([nome, valor]) => `${nome}: ${valor}`)
-                .join("\n\n")
-            );
-          }
-
-          if (assunto.funcoes) {
-            partes.push(
-              Object.entries(assunto.funcoes)
-                .map(([nome, valor]) => `${nome}: ${JSON.stringify(valor, null, 2)}`)
-                .join("\n\n")
-            );
-          }
-
-          if (assunto.tipos) {
-            partes.push(
-              Object.entries(assunto.tipos)
-                .map(([nome, valor]) => `${nome}: ${valor}`)
-                .join("\n\n")
-            );
-          }
-
-          if (assunto.topicos) {
-            partes.push(
-              Object.entries(assunto.topicos)
-                .map(([nome, valor]) => `${nome}: ${JSON.stringify(valor, null, 2)}`)
-                .join("\n\n")
-            );
-          }
-
-          if (Array.isArray(assunto.pontos_de_estudo)) {
-            partes.push(
-              assunto.pontos_de_estudo
-                .map((ponto: any) => {
-                  return `${ponto.topico || ponto.titulo || "Ponto de estudo"}${
-                    ponto.autor ? ` - ${ponto.autor}` : ""
-                  }: ${ponto.conteudo || ""}`;
-                })
-                .join("\n\n")
-            );
-          }
-
-          if (Array.isArray(assunto.atencao)) {
-            partes.push(`Atenção:\n${assunto.atencao.join("\n")}`);
-          }
-
-          return {
-            title: assunto.tema || assunto.titulo || "Tópico sem título",
-            short_summary: Array.isArray(assunto.resumo)
-              ? assunto.resumo.join(" ")
-              : assunto.resumo || "",
-            deep_explanation: partes.join("\n\n"),
-            key_points: Array.isArray(assunto.resumo) ? assunto.resumo : [],
-            oab_attention: Array.isArray(assunto.atencao)
-              ? assunto.atencao.join(" ")
-              : "",
-            legal_references: assunto.paginas
-              ? [`Páginas ${assunto.paginas.join(", ")} do material enviado`]
-              : []
-          };
-        })
-      : [];
-
     const topics = Array.isArray(parsed.topics)
       ? parsed.topics
       : Array.isArray(parsed.topicos)
         ? parsed.topicos
-        : topicsFromAssuntos;
+        : Array.isArray(parsed.assuntos)
+          ? parsed.assuntos.map(assuntoToTopic)
+          : [];
 
     const material: StudyMaterial = {
       id: parsed.id || `mat-${Date.now()}`,
@@ -193,6 +283,7 @@ const handleUpload = async () => {
       main_topic:
         parsed.main_topic ||
         parsed.materia ||
+        parsed.titulo ||
         parsed.assuntos?.[0]?.tema ||
         "Material importado",
       source_file_name:
@@ -202,6 +293,7 @@ const handleUpload = async () => {
       summary:
         parsed.summary ||
         parsed.resumo ||
+        parsed.fonte?.observacao ||
         `Material importado com ${topics.length} tópico(s) de estudo.`,
       study_objective:
         parsed.study_objective ||
@@ -280,16 +372,15 @@ const handleUpload = async () => {
           <div>
             <h1>Estudo aprofundado</h1>
 
-            <p className="lead">
-              Envie PDFs de estudo para a IA transformar em resumos, matérias e
-              tópicos aprofundados.
-            </p>
+<p className="lead">
+  Importe materiais em JSON para estudar por disciplina, matéria e tópicos aprofundados.
+</p>
           </div>
         </div>
 
         <div className="form-row" style={{ marginTop: 16 }}>
           <div>
-            <label>PDF de estudo</label>
+            <label>Arquivo JSON de estudo</label>
 
           <input
   className="input"
@@ -460,11 +551,42 @@ const handleUpload = async () => {
 
                       <div className="divider" />
 
-                      <h3>Aprofundamento</h3>
+                      {selectedTopic.sections && selectedTopic.sections.length > 0 ? (
+  <>
+    <div className="divider" />
 
-                      <p style={{ lineHeight: 1.85 }}>
-                        {selectedTopic.deep_explanation}
-                      </p>
+    <h3>Conteúdo do tópico</h3>
+
+    <div className="material-section-list">
+      {selectedTopic.sections.map((section, sectionIndex) => (
+        <div
+          className="material-section-card"
+          key={`${section.title}-${sectionIndex}`}
+        >
+          <h4>{section.title}</h4>
+
+          <ul className="material-list">
+            {section.items.map((item, itemIndex) => (
+              <li key={`${itemIndex}-${item.slice(0, 20)}`}>
+                {item}
+              </li>
+            ))}
+          </ul>
+        </div>
+      ))}
+    </div>
+  </>
+) : selectedTopic.deep_explanation ? (
+  <>
+    <div className="divider" />
+
+    <h3>Aprofundamento</h3>
+
+    <p style={{ lineHeight: 1.85 }}>
+      {selectedTopic.deep_explanation}
+    </p>
+  </>
+) : null}
 
                       {selectedTopic.key_points?.length > 0 && (
                         <>

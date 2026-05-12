@@ -1302,3 +1302,25 @@ pre {
     position: static;
   }
 }
+
+.material-section-list {
+  display: grid;
+  gap: 14px;
+}
+
+.material-section-card {
+  border: 1px solid var(--border);
+  background: var(--panel-2);
+  border-radius: 18px;
+  padding: 16px;
+}
+
+.material-section-card h4 {
+  margin: 0 0 10px;
+  color: var(--primary);
+}
+
+.material-section-card pre {
+  white-space: pre-wrap;
+  word-break: break-word;
+}
