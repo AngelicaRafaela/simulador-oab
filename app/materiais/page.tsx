@@ -82,34 +82,79 @@ function MateriaisContent() {
     selectedMaterial?.topics?.[0] ||
     null;
 
-const formatValue = (value: any): string[] => {
-  if (!value) return [];
+const prettifyLabel = (value: string) => {
+  const normalized = value
+    .replaceAll("_", " ")
+    .replace(/\b\w/g, (char) => char.toUpperCase());
 
-  if (typeof value === "string") {
-    return [value];
-  }
+  const replacements: Record<string, string> = {
+    "Vedacao Ao Anonimato": "Vedação ao anonimato",
+    "Direito De Resposta": "Direito de resposta",
+    "Liberdade Religiosa": "Liberdade religiosa",
+    "Escusa De Consciencia": "Escusa de consciência",
+    "Atividade Intelectual Artistica Cientifica Comunicacao":
+      "Atividade intelectual, artística, científica e de comunicação",
+    "Intimidade Vida Privada Honra Imagem":
+      "Intimidade, vida privada, honra e imagem",
+    "Inviolabilidade De Domicilio": "Inviolabilidade de domicílio",
+    "Regra Geral": "Regra geral",
+    "Conceito De Casa": "Conceito de casa",
+    "Com Consentimento Do Morador": "Com consentimento do morador",
+    "Sem Consentimento Durante O Dia": "Sem consentimento durante o dia",
+    "Sem Consentimento A Noite": "Sem consentimento à noite",
+    "Pegadinha Oab": "Pegadinha OAB",
+    "Inviolabilidade De Sigilos": "Inviolabilidade de sigilos",
+    "Cpi E Sigilos": "CPI e sigilos",
+    "Livre Exercicio Profissional": "Livre exercício profissional",
+    "Acesso A Informacao": "Acesso à informação",
+    "Livre Locomocao": "Livre locomoção",
+    "Direito De Reuniao": "Direito de reunião",
+    "Associacoes": "Associações",
+    "Dissolucao E Suspensao De Associacoes":
+      "Dissolução e suspensão de associações",
+    "Liberdade De Associacao": "Liberdade de associação",
+    "Representacao Por Entidades Associativas":
+      "Representação por entidades associativas",
+    "Direito De Propriedade": "Direito de propriedade",
+    "Desapropriacao": "Desapropriação",
+    "Desapropriacao Sancao": "Desapropriação-sanção",
+    "Necessidade Utilidade Publica Ou Interesse Social":
+      "Necessidade, utilidade pública ou interesse social",
+    "Uso Da Propriedade Particular": "Uso da propriedade particular",
+    "Art 243": "Art. 243",
+    "Pequena Propriedade Rural": "Pequena propriedade rural",
+    "Direito Sucessorio": "Direito sucessório",
+    "Direito Autoral": "Direito autoral",
+    "Direito De Peticao E Certidao": "Direito de petição e certidão",
+    "Direito De Peticao": "Direito de petição",
+    "Direito De Certidao": "Direito de certidão",
+    "Observacao Oab": "Observação OAB",
+    "Inafastabilidade De Jurisdicao": "Inafastabilidade de jurisdição",
+    "Direito Adquirido Ato Juridico Perfeito Coisa Julgada":
+      "Direito adquirido, ato jurídico perfeito e coisa julgada",
+    "Juiz Natural": "Juiz natural",
+    "Tribunal Do Juri": "Tribunal do Júri",
+    "Crimes Dolosos Contra A Vida Listados No Pdf":
+      "Crimes dolosos contra a vida listados no PDF",
+    "Crimes Conexos": "Crimes conexos",
+    "Foro Por Prerrogativa De Funcao": "Foro por prerrogativa de função",
+    "Irretroatividade Da Lei Penal": "Irretroatividade da lei penal",
+    "Crimes Imprescritiveis": "Crimes imprescritíveis",
+    "Observacao Pdf": "Observação do PDF",
+    "Conceito De Imprescritivel": "Conceito de imprescritível",
+    "Crimes Hediondos Ttt": "Crimes hediondos + TTT",
+    "Personalidade Da Pena": "Personalidade da pena",
+    "Penas Permitidas": "Penas permitidas",
+    "Penas Proibidas": "Penas proibidas",
+    "Direitos Dos Presos": "Direitos dos presos",
+    "Penas Observacao Atualizacao Legislativa":
+      "Observação sobre atualização legislativa das penas",
+    "Informacao Do Pdf": "Informação do PDF",
+    "Atualizacao Legislativa": "Atualização legislativa",
+    "Orientacao De Estudo": "Orientação de estudo"
+  };
 
-  if (Array.isArray(value)) {
-    return value.map((item) =>
-      typeof item === "string" ? item : JSON.stringify(item, null, 2)
-    );
-  }
-
-  if (typeof value === "object") {
-    return Object.entries(value).map(([key, item]) => {
-      const label = key
-        .replaceAll("_", " ")
-        .replace(/\b\w/g, (char) => char.toUpperCase());
-
-      if (typeof item === "string") {
-        return `${label}: ${item}`;
-      }
-
-      return `${label}: ${JSON.stringify(item, null, 2)}`;
-    });
-  }
-
-  return [String(value)];
+  return replacements[normalized] || normalized;
 };
 
 const assuntoToTopic = (assunto: any): StudyTopic => {
