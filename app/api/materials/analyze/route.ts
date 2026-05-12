@@ -2,6 +2,8 @@ import { GoogleGenAI } from "@google/genai";
 import { NextResponse } from "next/server";
 
 export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+export const maxDuration = 30;
 
 function extractJson(text: string) {
   const cleaned = text
