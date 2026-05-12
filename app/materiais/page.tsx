@@ -157,6 +157,49 @@ const prettifyLabel = (value: string) => {
   return replacements[normalized] || normalized;
 };
 
+const flattenValue = (value: any, prefix = ""): string[] => {
+  if (value === null || value === undefined || value === "") {
+    return [];
+  }
+
+  if (
+    typeof value === "string" ||
+    typeof value === "number" ||
+    typeof value === "boolean"
+  ) {
+    return [prefix ? `${prefix}: ${value}` : String(value)];
+  }
+
+  if (Array.isArray(value)) {
+    return value.flatMap((item) => {
+      if (
+        typeof item === "string" ||
+        typeof item === "number" ||
+        typeof item === "boolean"
+      ) {
+        return [prefix ? `${prefix}: ${item}` : String(item)];
+      }
+
+      return flattenValue(item, prefix);
+    });
+  }
+
+  if (typeof value === "object") {
+    return Object.entries(value).flatMap(([key, item]) => {
+      const label = prettifyLabel(key);
+      const nextPrefix = prefix ? `${prefix} - ${label}` : label;
+
+      return flattenValue(item, nextPrefix);
+    });
+  }
+
+  return [prefix ? `${prefix}: ${String(value)}` : String(value)];
+};
+
+const formatValue = (value: any): string[] => {
+  return flattenValue(value);
+};
+
 const assuntoToTopic = (assunto: any): StudyTopic => {
   const sections: StudySection[] = [];
 
