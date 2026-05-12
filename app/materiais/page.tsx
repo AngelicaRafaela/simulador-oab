@@ -55,32 +55,56 @@ function MateriaisContent() {
   const [selectedId, setSelectedId] = useState("");
   const [selectedTopicIndex, setSelectedTopicIndex] = useState(0);
   const [disciplineFilter, setDisciplineFilter] = useState("");
+  const [matterFilter, setMatterFilter] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
 
-  const disciplines = useMemo(
-    () =>
-      Array.from(new Set(materials.map((item) => item.discipline))).sort(),
-    [materials]
-  );
+const disciplines = useMemo(
+  () =>
+    Array.from(new Set(materials.map((item) => item.discipline))).sort(),
+  [materials]
+);
 
-  const filteredMaterials = useMemo(() => {
-    return materials.filter(
-      (item) => !disciplineFilter || item.discipline === disciplineFilter
-    );
-  }, [materials, disciplineFilter]);
+const matters = useMemo(() => {
+  if (!disciplineFilter) return [];
+
+  return Array.from(
+    new Set(
+      materials
+        .filter((item) => item.discipline === disciplineFilter)
+        .flatMap((item) => item.topics.map((topic) => topic.title))
+    )
+  ).sort();
+}, [materials, disciplineFilter]);
+
+const filteredMaterials = useMemo(() => {
+  return materials.filter((item) => {
+    const matchesDiscipline =
+      !disciplineFilter || item.discipline === disciplineFilter;
+
+    const matchesMatter =
+      !matterFilter ||
+      item.topics.some((topic) => topic.title === matterFilter);
+
+    return matchesDiscipline && matchesMatter;
+  });
+}, [materials, disciplineFilter, matterFilter]);
 
   const selectedMaterial =
     materials.find((item) => item.id === selectedId) ||
     filteredMaterials[0] ||
     null;
 
-  const selectedTopic =
-    selectedMaterial?.topics?.[selectedTopicIndex] ||
-    selectedMaterial?.topics?.[0] ||
-    null;
+const visibleTopics = selectedMaterial
+  ? selectedMaterial.topics.filter(
+      (topic) => !matterFilter || topic.title === matterFilter
+    )
+  : [];
+
+const selectedTopic =
+  visibleTopics[selectedTopicIndex] || visibleTopics[0] || null;
 
 const prettifyLabel = (value: string) => {
   const normalized = value
@@ -536,27 +560,53 @@ const handleUpload = async () => {
 />
           </div>
 
-          <div>
-            <label>Filtro por disciplina</label>
+<div>
+  <label>Filtro por disciplina</label>
 
-            <select
-              className="select"
-              value={disciplineFilter}
-              onChange={(event) => {
-                setDisciplineFilter(event.target.value);
-                setSelectedId("");
-                setSelectedTopicIndex(0);
-              }}
-            >
-              <option value="">Todas</option>
+  <select
+    className="select"
+    value={disciplineFilter}
+    onChange={(event) => {
+      setDisciplineFilter(event.target.value);
+      setMatterFilter("");
+      setSelectedId("");
+      setSelectedTopicIndex(0);
+    }}
+  >
+    <option value="">Todas</option>
 
-              {disciplines.map((discipline) => (
-                <option key={discipline} value={discipline}>
-                  {discipline}
-                </option>
-              ))}
-            </select>
-          </div>
+    {disciplines.map((discipline) => (
+      <option key={discipline} value={discipline}>
+        {discipline}
+      </option>
+    ))}
+  </select>
+</div>
+
+<div>
+  <label>Filtro por matéria</label>
+
+  <select
+    className="select"
+    value={matterFilter}
+    disabled={!disciplineFilter}
+    onChange={(event) => {
+      setMatterFilter(event.target.value);
+      setSelectedId("");
+      setSelectedTopicIndex(0);
+    }}
+  >
+    <option value="">
+      {disciplineFilter ? "Todas as matérias" : "Selecione uma disciplina"}
+    </option>
+
+    {matters.map((matter) => (
+      <option key={matter} value={matter}>
+        {matter}
+      </option>
+    ))}
+  </select>
+</div>
 
           <div>
             <label>Ação</label>
@@ -670,17 +720,17 @@ const handleUpload = async () => {
                   <h3>Matérias</h3>
 
                   <div className="materials-topic-list">
-                    {selectedMaterial.topics.map((topic, index) => (
-                      <button
-                        key={`${topic.title}-${index}`}
-                        className={`topic-button ${
-                          selectedTopicIndex === index ? "active" : ""
-                        }`}
-                        onClick={() => setSelectedTopicIndex(index)}
-                      >
-                        {topic.title}
-                      </button>
-                    ))}
+                    {visibleTopics.map((topic, index) => (
+  <button
+    key={`${topic.title}-${index}`}
+    className={`topic-button ${
+      selectedTopic?.title === topic.title ? "active" : ""
+    }`}
+    onClick={() => setSelectedTopicIndex(index)}
+  >
+    {topic.title}
+  </button>
+))}
                   </div>
                 </aside>
 
@@ -691,12 +741,16 @@ const handleUpload = async () => {
                     </p>
                   ) : (
                     <>
-                      <span className="badge">{selectedMaterial.discipline}</span>
+                      <div className="material-breadcrumb">
+  <span>{selectedMaterial.discipline}</span>
+  <strong>›</strong>
+  <span>{selectedTopic.title}</span>
+</div>
 
 <h2>{selectedTopic.title}</h2>
 
 <p className="muted">
-  Matéria dentro de {selectedMaterial.discipline}
+  Conteúdo de estudo da matéria selecionada.
 </p>
 
                       {selectedTopic.sections && selectedTopic.sections.length > 0 ? (

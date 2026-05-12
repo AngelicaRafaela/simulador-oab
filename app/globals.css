@@ -1324,3 +1324,17 @@ pre {
   white-space: pre-wrap;
   word-break: break-word;
 }
+
+.material-breadcrumb {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  color: var(--muted);
+  font-weight: 800;
+  margin-bottom: 10px;
+}
+
+.material-breadcrumb strong {
+  color: var(--accent);
+}
