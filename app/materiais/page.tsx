@@ -76,56 +76,83 @@ function MateriaisContent() {
     selectedMaterial?.topics?.[0] ||
     null;
 
-  const handleUpload = async () => {
-    if (!file) {
-      setError("Selecione um PDF antes de enviar.");
-      return;
+const handleUpload = async () => {
+  if (!file) {
+    setError("Selecione um arquivo JSON antes de importar.");
+    return;
+  }
+
+  setLoading(true);
+  setError("");
+  setMessage("");
+
+  try {
+    const text = await file.text();
+    const parsed = JSON.parse(text);
+
+    const material: StudyMaterial = {
+      id: parsed.id || `mat-${Date.now()}`,
+      title: parsed.title || parsed.documento?.titulo || file.name,
+      discipline:
+        parsed.discipline ||
+        parsed.disciplina ||
+        parsed.documento?.disciplina ||
+        "Sem disciplina",
+      main_topic:
+        parsed.main_topic ||
+        parsed.materia ||
+        parsed.topico ||
+        parsed.documento?.conteudo?.[0]?.topico ||
+        "Sem matéria definida",
+      source_file_name: parsed.source_file_name || file.name,
+      summary: parsed.summary || parsed.resumo || "",
+      study_objective:
+        parsed.study_objective ||
+        parsed.objetivo_estudo ||
+        "Estudar e revisar os principais pontos do material.",
+      topics: Array.isArray(parsed.topics)
+        ? parsed.topics
+        : Array.isArray(parsed.topicos)
+          ? parsed.topicos
+          : [],
+      suggested_study_order: Array.isArray(parsed.suggested_study_order)
+        ? parsed.suggested_study_order
+        : Array.isArray(parsed.ordem_estudo)
+          ? parsed.ordem_estudo
+          : [],
+      review_checklist: Array.isArray(parsed.review_checklist)
+        ? parsed.review_checklist
+        : Array.isArray(parsed.checklist_revisao)
+          ? parsed.checklist_revisao
+          : [],
+      created_at: parsed.created_at || new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    };
+
+    if (!material.topics || material.topics.length === 0) {
+      throw new Error(
+        "O JSON foi lido, mas não possui a lista 'topics'. Verifique a estrutura do arquivo."
+      );
     }
 
-    setLoading(true);
-    setError("");
-    setMessage("");
+    const nextMaterials = [material, ...materials];
 
-    try {
-      const formData = new FormData();
-      formData.append("file", file);
-
-      const response = await fetch("/api/materials/analyze", {
-  method: "POST",
-  body: formData
-});
-
-const rawText = await response.text();
-
-let data: any = null;
-
-try {
-  data = JSON.parse(rawText);
-} catch {
-  throw new Error(
-    rawText?.slice(0, 300) ||
-      "A API retornou uma resposta inválida. Verifique os logs da Vercel."
-  );
-}
-
-if (!response.ok) {
-  throw new Error(data?.error || "Erro ao analisar o PDF.");
-}
-
-      const nextMaterials = [data as StudyMaterial, ...materials];
-
-      setMaterials(nextMaterials);
-      saveMaterials(nextMaterials);
-      setSelectedId(data.id);
-      setSelectedTopicIndex(0);
-      setFile(null);
-      setMessage("PDF analisado e material de estudo criado com sucesso.");
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Erro ao enviar o PDF.");
-    } finally {
-      setLoading(false);
-    }
-  };
+    setMaterials(nextMaterials);
+    saveMaterials(nextMaterials);
+    setSelectedId(material.id);
+    setSelectedTopicIndex(0);
+    setFile(null);
+    setMessage("Material JSON importado com sucesso.");
+  } catch (err) {
+    setError(
+      err instanceof Error
+        ? err.message
+        : "Erro ao importar o arquivo JSON."
+    );
+  } finally {
+    setLoading(false);
+  }
+};
 
   const handleDelete = (id: string) => {
     const confirmDelete = window.confirm(
@@ -167,12 +194,12 @@ if (!response.ok) {
           <div>
             <label>PDF de estudo</label>
 
-            <input
-              className="input"
-              type="file"
-              accept="application/pdf"
-              onChange={(event) => setFile(event.target.files?.[0] || null)}
-            />
+          <input
+  className="input"
+  type="file"
+  accept="application/json,.json"
+  onChange={(event) => setFile(event.target.files?.[0] || null)}
+/>
           </div>
 
           <div>
@@ -201,7 +228,7 @@ if (!response.ok) {
             <label>Ação</label>
 
             <button className="btn" onClick={handleUpload} disabled={loading}>
-              {loading ? "Analisando PDF..." : "Enviar e analisar PDF"}
+              {loading ? "Importando JSON..." : "Importar material JSON"}
             </button>
           </div>
         </div>
