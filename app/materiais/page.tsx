@@ -9,6 +9,16 @@ type StudySection = {
 };
 
 type StudyTopic = {
+  title: string;
+  short_summary: string;
+  deep_explanation: string;
+  key_points: string[];
+  oab_attention: string;
+  legal_references: string[];
+  sections?: StudySection[];
+  user_notes?: string;
+  annotations?: Record<string, string>;
+};
 
 type StudyMaterial = {
   id: string;
