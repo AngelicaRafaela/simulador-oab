@@ -12,6 +12,7 @@ export function Navigation() {
           <Link href="/">Visão Geral</Link>
           <Link href="/importar">Importar</Link>
           <Link href="/banco">Banco</Link>
+	  <Link href="/agenda">Agenda</Link>
           <Link href="/estudo">Estudo</Link>
 	  <Link href="/materiais">Materiais</Link>
           <Link href="/simulado">Simulado</Link>

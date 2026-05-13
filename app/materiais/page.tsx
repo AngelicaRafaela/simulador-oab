@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ClientOnly } from "@/components/ClientOnly";
 
 type StudySection = {
@@ -111,6 +111,22 @@ function MateriaisContent() {
 
   const selectedTopic =
     visibleTopics[selectedTopicIndex] || visibleTopics[0] || null;
+useEffect(() => {
+  if (typeof window === "undefined") return;
+
+  const params = new URLSearchParams(window.location.search);
+  const disciplina = params.get("disciplina");
+  const materia = params.get("materia");
+
+  if (disciplina) {
+    setDisciplineFilter(disciplina);
+  }
+
+  if (materia) {
+    setMatterFilter(materia);
+    setSelectedTopicIndex(0);
+  }
+}, []);
 
   const prettifyLabel = (value: string) => {
     const normalized = value
