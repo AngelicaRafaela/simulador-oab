@@ -514,45 +514,47 @@ function AgendaContent() {
                           key={item.id}
                           className={`agenda-item ${item.status}`}
                         >
-                          <div>
-                            <span className="badge">{item.discipline}</span>
+<div className="agenda-item-content">
+  <div className="agenda-item-header">
+    <span className="badge">{item.discipline}</span>
 
-                            <h3>Sessão de estudo</h3>
+    <h3>Sessão de estudo</h3>
+  </div>
 
-                            <div className="agenda-matter-list">
-                              {item.matters.map((matter) => (
-                                <span key={matter}>{matter}</span>
-                              ))}
-                            </div>
+  <div className="agenda-matter-list">
+    {item.matters.map((matter) => (
+      <span key={matter}>{matter}</span>
+    ))}
+  </div>
 
-                            <div className="agenda-plan">
-                              <p>
-                                <strong>Leitura:</strong>{" "}
-                                {item.reading_minutes} min
-                              </p>
+  <div className="agenda-plan">
+    <div>
+      <strong>{item.reading_minutes} min</strong>
+      <span>Leitura</span>
+    </div>
 
-                              <p>
-                                <strong>Questões:</strong>{" "}
-                                {item.questions_minutes} min
-                              </p>
+    <div>
+      <strong>{item.questions_minutes} min</strong>
+      <span>Questões</span>
+    </div>
 
-                              <p>
-                                <strong>Mini simulado:</strong>{" "}
-                                {item.simulation_minutes} min
-                              </p>
-                            </div>
+    <div>
+      <strong>{item.simulation_minutes} min</strong>
+      <span>Mini simulado</span>
+    </div>
+  </div>
 
-                            <p className="muted small">
-                              Status:{" "}
-                              <strong>
-                                {item.status === "concluido"
-                                  ? "Concluído"
-                                  : item.status === "em_andamento"
-                                    ? "Em andamento"
-                                    : "Pendente"}
-                              </strong>
-                            </p>
-                          </div>
+  <p className="agenda-status">
+    Status:{" "}
+    <strong>
+      {item.status === "concluido"
+        ? "Concluído"
+        : item.status === "em_andamento"
+          ? "Em andamento"
+          : "Pendente"}
+    </strong>
+  </p>
+</div>
 
                           <div className="agenda-actions">
                             <Link
