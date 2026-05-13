@@ -9,14 +9,6 @@ type StudySection = {
 };
 
 type StudyTopic = {
-  title: string;
-  short_summary: string;
-  deep_explanation: string;
-  key_points: string[];
-  oab_attention: string;
-  legal_references: string[];
-  sections?: StudySection[];
-};
 
 type StudyMaterial = {
   id: string;
@@ -60,6 +52,9 @@ function MateriaisContent() {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [activeAnnotationKey, setActiveAnnotationKey] = useState("");
+  const [activeAnnotationLabel, setActiveAnnotationLabel] = useState("");
+  const [annotationDraft, setAnnotationDraft] = useState("");
 
 const disciplines = useMemo(
   () =>
@@ -92,10 +87,10 @@ const filteredMaterials = useMemo(() => {
   });
 }, [materials, disciplineFilter, matterFilter]);
 
-  const selectedMaterial =
-    materials.find((item) => item.id === selectedId) ||
-    filteredMaterials[0] ||
-    null;
+const selectedMaterial =
+  filteredMaterials.find((item) => item.id === selectedId) ||
+  filteredMaterials[0] ||
+  null;
 
 const visibleTopics = selectedMaterial
   ? selectedMaterial.topics.filter(
@@ -262,13 +257,16 @@ const flattenValue = (value: any, prefix = ""): string[] => {
     return [];
   }
 
-  if (
-    typeof value === "string" ||
-    typeof value === "number" ||
-    typeof value === "boolean"
-  ) {
-    return [prefix ? `${prefix}: ${value}` : String(value)];
-  }
+if (
+  typeof value === "string" ||
+  typeof value === "number" ||
+  typeof value === "boolean"
+) {
+  const displayValue =
+    typeof value === "boolean" ? (value ? "Sim" : "Não") : String(value);
+
+  return [prefix ? `${prefix}: ${displayValue}` : displayValue];
+}
 
   if (Array.isArray(value)) {
     return value.flatMap((item) => {
@@ -277,7 +275,10 @@ const flattenValue = (value: any, prefix = ""): string[] => {
         typeof item === "number" ||
         typeof item === "boolean"
       ) {
-        return [prefix ? `${prefix}: ${item}` : String(item)];
+        const displayValue =
+  typeof item === "boolean" ? (item ? "Sim" : "Não") : String(item);
+
+return [prefix ? `${prefix}: ${displayValue}` : displayValue];
       }
 
       return flattenValue(item, prefix);
@@ -415,16 +416,20 @@ if (assunto.pontos_oab) {
 }
 
 if (assunto.remedios) {
-  sections.push({
-    title: "Remédios constitucionais",
-    items: formatValue(assunto.remedios)
+  Object.entries(assunto.remedios).forEach(([nome, conteudo]) => {
+    sections.push({
+      title: prettifyLabel(nome),
+      items: formatValue(conteudo)
+    });
   });
 }
 
 if (assunto.direitos) {
-  sections.push({
-    title: "Direitos trabalhistas",
-    items: formatValue(assunto.direitos)
+  Object.entries(assunto.direitos).forEach(([nome, conteudo]) => {
+    sections.push({
+      title: prettifyLabel(nome),
+      items: formatValue(conteudo)
+    });
   });
 }
 
@@ -541,6 +546,8 @@ const handleUpload = async () => {
     setSelectedTopicIndex(0);
     setFile(null);
     setMessage("Material JSON importado com sucesso.");
+setDisciplineFilter(material.discipline);
+setMatterFilter("");
   } catch (err) {
     setError(
       err instanceof Error
@@ -566,6 +573,78 @@ const handleUpload = async () => {
     setSelectedId("");
     setSelectedTopicIndex(0);
   };
+
+const handleDelete = (id: string) => {
+  const confirmDelete = window.confirm(
+    "Deseja excluir este material de estudo?"
+  );
+
+  if (!confirmDelete) return;
+
+  const next = materials.filter((item) => item.id !== id);
+
+  setMaterials(next);
+  saveMaterials(next);
+  setSelectedId("");
+  setSelectedTopicIndex(0);
+};
+
+const openAnnotation = (key: string, label: string) => {
+  setActiveAnnotationKey(key);
+  setActiveAnnotationLabel(label);
+  setAnnotationDraft(selectedTopic?.annotations?.[key] || "");
+};
+
+const handleSaveAnnotation = () => {
+  if (!selectedMaterial || !selectedTopic || !activeAnnotationKey) return;
+
+  const updatedMaterials = materials.map((material) => {
+    if (material.id !== selectedMaterial.id) return material;
+
+    return {
+      ...material,
+      topics: material.topics.map((topic) => {
+        if (topic.title !== selectedTopic.title) return topic;
+
+        return {
+          ...topic,
+          annotations: {
+            ...(topic.annotations || {}),
+            [activeAnnotationKey]: annotationDraft
+          }
+        };
+      }),
+      updated_at: new Date().toISOString()
+    };
+  });
+
+  setMaterials(updatedMaterials);
+  saveMaterials(updatedMaterials);
+};
+
+const handleSaveTopicNotes = (value: string) => {
+  if (!selectedMaterial || !selectedTopic) return;
+
+  const updatedMaterials = materials.map((material) => {
+    if (material.id !== selectedMaterial.id) return material;
+
+    return {
+      ...material,
+      topics: material.topics.map((topic) =>
+        topic.title === selectedTopic.title
+          ? {
+              ...topic,
+              user_notes: value
+            }
+          : topic
+      ),
+      updated_at: new Date().toISOString()
+    };
+  });
+
+  setMaterials(updatedMaterials);
+  saveMaterials(updatedMaterials);
+};
 
   return (
     <div className="materials-page">
@@ -754,22 +833,221 @@ const handleUpload = async () => {
                 )}
               </section>
 
-              <section className="materials-topic-layout">
-                <aside className="card">
-                  <h3>Matérias</h3>
+<section className="materials-study-layout">
+  <aside className="materials-sidebar card">
+    <h2>Materiais</h2>
 
-                  <div className="materials-topic-list">
-                    {visibleTopics.map((topic, index) => (
-  <button
-    key={`${topic.title}-${index}`}
-    className={`topic-button ${
-      selectedTopic?.title === topic.title ? "active" : ""
-    }`}
-    onClick={() => setSelectedTopicIndex(index)}
-  >
-    {topic.title}
-  </button>
-))}
+    <div className="materials-list">
+      {filteredMaterials.map((material) => (
+        <button
+          key={material.id}
+          className={`material-list-item ${
+            selectedMaterial?.id === material.id ? "active" : ""
+          }`}
+          onClick={() => {
+            setSelectedId(material.id);
+            setSelectedTopicIndex(0);
+            setMatterFilter("");
+          }}
+        >
+          <strong>{material.main_topic}</strong>
+          <span>{material.discipline}</span>
+          <small>{material.source_file_name}</small>
+        </button>
+      ))}
+    </div>
+  </aside>
+
+  <main className="materials-reader card">
+    {!selectedTopic ? (
+      <p className="muted">
+        Nenhuma matéria encontrada para os filtros selecionados.
+      </p>
+    ) : (
+      <>
+        <div className="reader-matter-tabs">
+          {visibleTopics.map((topic, index) => (
+            <button
+              key={`${topic.title}-${index}`}
+              className={`reader-matter-tab ${
+                selectedTopic?.title === topic.title ? "active" : ""
+              }`}
+              onClick={() => {
+                setSelectedTopicIndex(index);
+                setActiveAnnotationKey("");
+                setActiveAnnotationLabel("");
+                setAnnotationDraft("");
+              }}
+            >
+              {topic.title}
+            </button>
+          ))}
+        </div>
+
+        <div className="material-breadcrumb">
+          <span>{selectedMaterial.discipline}</span>
+          <strong>›</strong>
+          <span>{selectedTopic.title}</span>
+        </div>
+
+        <h1 className="reader-title">{selectedTopic.title}</h1>
+
+        {selectedTopic.short_summary && (
+          <section className="reader-summary">
+            <h2>Resumo da matéria</h2>
+            <p>{selectedTopic.short_summary}</p>
+          </section>
+        )}
+
+        {selectedTopic.sections && selectedTopic.sections.length > 0 ? (
+          <div className="reader-section-list">
+            {selectedTopic.sections.map((section, sectionIndex) => (
+              <section
+                className="reader-section"
+                key={`${section.title}-${sectionIndex}`}
+              >
+                <h2>{section.title}</h2>
+
+                <div className="reader-items">
+                  {section.items.map((item, itemIndex) => {
+                    const annotationKey = `${selectedMaterial.id}-${selectedTopic.title}-${section.title}-${itemIndex}`;
+                    const hasAnnotation = Boolean(
+                      selectedTopic.annotations?.[annotationKey]
+                    );
+
+                    return (
+                      <div
+                        className={`reader-annotable-line ${
+                          hasAnnotation ? "has-annotation" : ""
+                        }`}
+                        key={`${itemIndex}-${item.slice(0, 20)}`}
+                      >
+                        <p>{item}</p>
+
+                        <button
+                          type="button"
+                          className="annotation-button"
+                          onClick={() =>
+                            openAnnotation(
+                              annotationKey,
+                              `${section.title}: ${item.slice(0, 120)}`
+                            )
+                          }
+                        >
+                          {hasAnnotation ? "Ver anotação" : "Anotar"}
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              </section>
+            ))}
+          </div>
+        ) : selectedTopic.deep_explanation ? (
+          <section className="reader-section">
+            <h2>Aprofundamento</h2>
+            <p>{selectedTopic.deep_explanation}</p>
+          </section>
+        ) : null}
+
+        {selectedTopic.key_points?.filter(Boolean).length > 0 && (
+          <section className="reader-section reader-highlight">
+            <h2>Pontos importantes</h2>
+
+            <ul>
+              {selectedTopic.key_points
+                .filter(Boolean)
+                .map((point, index) => (
+                  <li key={`${point}-${index}`}>{point}</li>
+                ))}
+            </ul>
+          </section>
+        )}
+
+        {selectedTopic.oab_attention && (
+          <section className="reader-section reader-warning">
+            <h2>Atenção para OAB</h2>
+            <p>{selectedTopic.oab_attention}</p>
+          </section>
+        )}
+
+        {selectedTopic.legal_references?.length > 0 && (
+          <section className="reader-section">
+            <h2>Base / Fonte</h2>
+
+            <div className="actions">
+              {selectedTopic.legal_references.map((reference, index) => (
+                <span className="badge" key={`${reference}-${index}`}>
+                  {reference}
+                </span>
+              ))}
+            </div>
+          </section>
+        )}
+      </>
+    )}
+  </main>
+
+  <aside className="materials-notes card">
+    <h2>Anotações</h2>
+
+    {!selectedTopic ? (
+      <p className="muted small">
+        Selecione uma matéria para criar anotações.
+      </p>
+    ) : (
+      <>
+        <div className="notes-block">
+          <h3>Anotação geral da matéria</h3>
+
+          <textarea
+            className="textarea notes-textarea"
+            defaultValue={selectedTopic.user_notes || ""}
+            onBlur={(event) => handleSaveTopicNotes(event.target.value)}
+            placeholder="Anote aqui dúvidas, pontos de revisão ou observações gerais da matéria..."
+          />
+
+          <p className="muted small">
+            Salva automaticamente ao sair do campo.
+          </p>
+        </div>
+
+        <div className="divider" />
+
+        <div className="notes-block">
+          <h3>Anotação do trecho</h3>
+
+          {activeAnnotationKey ? (
+            <>
+              <p className="selected-snippet">
+                {activeAnnotationLabel}
+              </p>
+
+              <textarea
+                className="textarea notes-textarea"
+                value={annotationDraft}
+                onChange={(event) => setAnnotationDraft(event.target.value)}
+                placeholder="Escreva sua anotação sobre esse trecho..."
+              />
+
+              <button
+                type="button"
+                className="btn"
+                onClick={handleSaveAnnotation}
+              >
+                Salvar anotação
+              </button>
+            </>
+          ) : (
+            <p className="muted small">
+              Clique em “Anotar” ao lado de qualquer trecho do texto.
+            </p>
+          )}
+        </div>
+      </>
+    )}
+  </aside>
+</section>
                   </div>
                 </aside>
 
