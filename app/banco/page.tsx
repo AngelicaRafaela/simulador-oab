@@ -76,7 +76,10 @@ onUpdateQuestion({
 
 <button
   onClick={() => {
-    clearCurrentQuestionContext();
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("oab-current-context");
+    }
+
     closeModal();
   }}
 >
@@ -468,9 +471,19 @@ const updatedQuestion: Question = {
 
                 <td>
 <button
-  className="btn secondary"
   onClick={() => {
-    saveCurrentQuestionContext(item);
+    if (typeof window !== "undefined") {
+      localStorage.setItem(
+        "oab-current-context",
+        JSON.stringify({
+          page: "banco",
+          type: "question",
+          opened_at: new Date().toISOString(),
+          question: item
+        })
+      );
+    }
+
     openModal(item);
   }}
 >
