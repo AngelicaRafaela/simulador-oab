@@ -7,6 +7,8 @@ import { generateExplanation } from "@/lib/aiClient";
 import type { Question, ReviewStatus } from "@/lib/types";
 import { StudyExplanation } from "@/components/StudyExplanation";
 
+const CURRENT_CONTEXT_KEY = "oab-current-context";
+
 function StatusBadge({ status }: { status: ReviewStatus }) {
   return <span className={`badge ${status}`}>{status}</span>;
 }
@@ -72,9 +74,14 @@ onUpdateQuestion({
       >
         <h2 style={{ margin: 0 }}>Questão {question.number}</h2>
 
-        <button className="btn secondary" onClick={onClose}>
-          Fechar
-        </button>
+<button
+  onClick={() => {
+    clearCurrentQuestionContext();
+    closeModal();
+  }}
+>
+  Fechar
+</button>
       </div>
 
       <p className="muted">
@@ -175,6 +182,30 @@ function BancoContent() {
       return matchSubject && matchStatus && matchSearch;
     });
   }, [questions, subject, status, search]);
+
+const openQuestionContext = (question: Question) => {
+  setSelected(question);
+
+  if (typeof window !== "undefined") {
+    localStorage.setItem(
+      CURRENT_CONTEXT_KEY,
+      JSON.stringify({
+        page: "banco",
+        type: "question",
+        opened_at: new Date().toISOString(),
+        question
+      })
+    );
+  }
+};
+
+const closeQuestionContext = () => {
+  setSelected(null);
+
+  if (typeof window !== "undefined") {
+    localStorage.removeItem(CURRENT_CONTEXT_KEY);
+  }
+};
 
   const updateQuestion = (nextQuestion: Question) => {
     const next = questions.map((q) =>
@@ -436,12 +467,15 @@ const updatedQuestion: Question = {
                 </td>
 
                 <td>
-                  <button
-                    className="btn secondary"
-                    onClick={() => setSelected(q)}
-                  >
-                    Abrir
-                  </button>
+<button
+  className="btn secondary"
+  onClick={() => {
+    saveCurrentQuestionContext(item);
+    openModal(item);
+  }}
+>
+  Abrir
+</button>
                 </td>
               </tr>
             ))}

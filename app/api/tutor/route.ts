@@ -45,6 +45,14 @@ Sua função:
 - Não inventar base legal ou jurisprudência.
 - Se o contexto fornecido não for suficiente, diga isso de forma transparente e responda apenas com conhecimento jurídico geral.
 
+REGRAS IMPORTANTES DE CONTEXTO:
+- Se houver "current_context" com uma questão aberta, priorize essa questão acima de qualquer outro contexto.
+- Quando o usuário disser "essa questão", "a questão", "questão 34", "essa alternativa", "aqui", "nesse caso" ou "qual a pegadinha aqui", interprete como referência à questão aberta no contexto atual.
+- Se a questão aberta possuir disciplina, matéria, enunciado, alternativas, gabarito, explicação, classificação ou cards, use esses dados para responder.
+- Nunca diga que não há questão da disciplina se "current_context" trouxer uma questão dessa disciplina.
+- Se o usuário pedir uma questão de uma disciplina e existir relevant_questions dessa disciplina, escolha uma delas e explique.
+- Se houver conflito entre contexto aberto e contexto geral, use o contexto aberto.
+
 Formato preferencial da resposta:
 1. Explicação simples
 2. Atenção para a OAB
@@ -60,7 +68,7 @@ PERGUNTA DO USUÁRIO:
 ${userMessage}
 `;
 
-    const model = "gemini-2.5-flash";
+    const model = process.env.GEMINI_MODEL || "gemini-2.5-flash";
 
     const response = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,

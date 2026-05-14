@@ -1,344 +1,135 @@
-"use client";
+import { NextResponse } from "next/server";
 
-import { useMemo, useState } from "react";
-import { useOabData } from "@/hooks/useOabData";
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
-type TutorMessage = {
-  role: "user" | "assistant";
-  content: string;
+type TutorRequestBody = {
+  message?: string;
+  context?: unknown;
 };
 
-type StudyMaterial = {
-  id: string;
-  title: string;
-  discipline: string;
-  main_topic: string;
-  source_file_name: string;
-  topics: Array<{
-    title: string;
-    short_summary?: string;
-    deep_explanation?: string;
-    key_points?: string[];
-    oab_attention?: string;
-    legal_references?: string[];
-    sections?: Array<{
-      title: string;
-      items: string[];
-    }>;
-  }>;
-};
-
-const MATERIALS_STORAGE_KEY = "oab-study-materials-v1";
-
-function normalizeText(value = "") {
-  return value
-    .normalize("NFD")
-    .replace(/\p{Diacritic}/gu, "")
-    .toLowerCase()
-    .trim();
-}
-
-function loadMaterials(): StudyMaterial[] {
-  if (typeof window === "undefined") return [];
-
+export async function POST(request: Request) {
   try {
-    const raw = localStorage.getItem(MATERIALS_STORAGE_KEY);
-    return raw ? JSON.parse(raw) : [];
-  } catch {
-    return [];
-  }
-}
+    const apiKey = process.env.GEMINI_API_KEY;
 
-function getUrlContext() {
-  if (typeof window === "undefined") {
-    return {
-      path: "",
-      disciplina: "",
-      materia: "",
-      subject: "",
-      topic: ""
-    };
-  }
-
-  const params = new URLSearchParams(window.location.search);
-
-  return {
-    path: window.location.pathname,
-    disciplina: params.get("disciplina") || "",
-    materia: params.get("materia") || "",
-    subject: params.get("subject") || "",
-    topic: params.get("topic") || ""
-  };
-}
-
-function buildMaterialContext(materials: StudyMaterial[], discipline: string, matter: string) {
-  const normalizedDiscipline = normalizeText(discipline);
-  const normalizedMatter = normalizeText(matter);
-
-  const matchedTopics = materials.flatMap((material) => {
-    const materialDiscipline = normalizeText(material.discipline);
-
-    if (normalizedDiscipline && materialDiscipline !== normalizedDiscipline) {
-      return [];
+    if (!apiKey) {
+      return NextResponse.json(
+        {
+          error:
+            "A variável GEMINI_API_KEY não está configurada no ambiente da Vercel."
+        },
+        { status: 500 }
+      );
     }
 
-    return material.topics
-      .filter((topic) => {
-        if (!normalizedMatter) return true;
+    const body = (await request.json()) as TutorRequestBody;
+    const userMessage = String(body.message || "").trim();
 
-        return normalizeText(topic.title).includes(normalizedMatter);
-      })
-      .slice(0, 4)
-      .map((topic) => ({
-        discipline: material.discipline,
-        material_title: material.main_topic || material.title,
-        source: material.source_file_name,
-        topic: topic.title,
-        summary: topic.short_summary || "",
-        key_points: topic.key_points?.slice(0, 8) || [],
-        oab_attention: topic.oab_attention || "",
-        legal_references: topic.legal_references || [],
-        sections:
-          topic.sections?.slice(0, 5).map((section) => ({
-            title: section.title,
-            items: section.items.slice(0, 8)
-          })) || []
-      }));
-  });
-
-  return matchedTopics.slice(0, 8);
-}
-
-function buildQuestionContext(
-  questions: any[],
-  discipline: string,
-  matter: string
-) {
-  const normalizedDiscipline = normalizeText(discipline);
-  const normalizedMatter = normalizeText(matter);
-
-  const filtered = questions
-    .filter((question) => question.review_status === "validado")
-    .filter((question) => {
-      if (!normalizedDiscipline) return true;
-
-      return normalizeText(question.subject) === normalizedDiscipline;
-    })
-    .filter((question) => {
-      if (!normalizedMatter) return true;
-
-      return normalizeText(question.topic || "").includes(normalizedMatter);
-    })
-    .slice(0, 6)
-    .map((question) => ({
-      exam: question.exam,
-      subject: question.subject,
-      topic: question.topic,
-      statement: question.statement,
-      options: question.options,
-      correct_answer: question.correct_answer,
-      explanation: question.explanation,
-      legal_reference: question.legal_reference
-    }));
-
-  return filtered;
-}
-
-export function TutorOab() {
-  const { questions } = useOabData();
-
-  const [open, setOpen] = useState(false);
-  const [input, setInput] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [messages, setMessages] = useState<TutorMessage[]>([
-    {
-      role: "assistant",
-      content:
-        "Olá! Eu sou o Tutor OAB. Pode me perguntar sobre uma matéria, questão, alternativa, pegadinha ou base legal."
+    if (!userMessage) {
+      return NextResponse.json(
+        { error: "Envie uma pergunta para o Tutor OAB." },
+        { status: 400 }
+      );
     }
-  ]);
 
-  const quickSuggestions = useMemo(
-    () => [
-      "Explique esse tema de forma simples.",
-      "Qual é a pegadinha da OAB aqui?",
-      "Faça um resumo para memorizar.",
-      "Qual a diferença entre esses institutos?"
-    ],
-    []
-  );
+    const contextText = JSON.stringify(body.context || {}, null, 2);
 
-  const sendMessage = async (customMessage?: string) => {
-    const message = (customMessage || input).trim();
+    const prompt = `
+Você é um Tutor OAB para estudantes da 1ª fase.
 
-    if (!message || loading) return;
+Sua função:
+- Tirar dúvidas jurídicas de forma didática.
+- Usar prioritariamente o contexto fornecido pelo sistema.
+- Explicar com linguagem simples, objetiva e segura.
+- Quando possível, conectar a resposta com a forma como a FGV/OAB costuma cobrar.
+- Não inventar base legal ou jurisprudência.
+- Se o contexto fornecido não for suficiente, diga isso de forma transparente e responda apenas com conhecimento jurídico geral.
 
-    setInput("");
-    setLoading(true);
+REGRAS IMPORTANTES DE CONTEXTO:
+- Se houver "current_context" com uma questão aberta, priorize essa questão acima de qualquer outro contexto.
+- Quando o usuário disser "essa questão", "a questão", "questão 34", "essa alternativa", "aqui", "nesse caso" ou "qual a pegadinha aqui", interprete como referência à questão aberta no contexto atual.
+- Se a questão aberta possuir disciplina, matéria, enunciado, alternativas, gabarito, explicação, classificação ou cards, use esses dados para responder.
+- Nunca diga que não há questão da disciplina se "current_context" trouxer uma questão dessa disciplina.
+- Se o usuário pedir uma questão de uma disciplina e existir relevant_questions dessa disciplina, escolha uma delas e explique.
+- Se houver conflito entre contexto aberto e contexto geral, use o contexto aberto.
 
-    const nextMessages: TutorMessage[] = [
-      ...messages,
-      { role: "user", content: message }
-    ];
+Formato preferencial da resposta:
+1. Explicação simples
+2. Atenção para a OAB
+3. Exemplo ou pegadinha
+4. Base legal, quando houver no contexto ou for segura
 
-    setMessages(nextMessages);
+Evite respostas muito longas. Seja útil para estudo.
 
-    try {
-      const urlContext = getUrlContext();
+CONTEXTO DISPONÍVEL NO SISTEMA:
+${contextText}
 
-      const discipline =
-        urlContext.disciplina || urlContext.subject || "";
+PERGUNTA DO USUÁRIO:
+${userMessage}
+`;
 
-      const matter =
-        urlContext.materia || urlContext.topic || "";
+    const model = process.env.GEMINI_MODEL || "gemini-2.5-flash";
 
-      const materials = loadMaterials();
-
-      const context = {
-        current_page: urlContext.path,
-        current_discipline: discipline,
-        current_matter: matter,
-        relevant_materials: buildMaterialContext(
-          materials,
-          discipline,
-          matter
-        ),
-        relevant_questions: buildQuestionContext(
-          questions,
-          discipline,
-          matter
-        ),
-        conversation_history: nextMessages.slice(-6)
-      };
-
-      const response = await fetch("/api/tutor", {
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
+      {
         method: "POST",
         headers: {
           "Content-Type": "application/json"
         },
         body: JSON.stringify({
-          message,
-          context
+          contents: [
+            {
+              role: "user",
+              parts: [{ text: prompt }]
+            }
+          ],
+          generationConfig: {
+            temperature: 0.25,
+            maxOutputTokens: 1400
+          }
         })
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(
-          data?.error ||
-            "Não foi possível consultar o Tutor OAB agora."
-        );
       }
+    );
 
-      setMessages((current) => [
-        ...current,
+    if (!response.ok) {
+      const errorText = await response.text();
+
+      return NextResponse.json(
         {
-          role: "assistant",
-          content: data.answer
-        }
-      ]);
-    } catch (error) {
-      setMessages((current) => [
-        ...current,
-        {
-          role: "assistant",
-          content:
-            error instanceof Error
-              ? error.message
-              : "Erro ao consultar o Tutor OAB."
-        }
-      ]);
-    } finally {
-      setLoading(false);
+          error:
+            "Não foi possível consultar o Tutor OAB agora. Tente novamente em instantes.",
+          details: errorText
+        },
+        { status: response.status }
+      );
     }
-  };
 
-  return (
-    <>
-      <button
-        type="button"
-        className="tutor-floating-button"
-        onClick={() => setOpen(true)}
-      >
-        Tutor OAB
-      </button>
+    const data = await response.json();
 
-      {open && (
-        <div className="tutor-backdrop">
-          <aside className="tutor-panel">
-            <header className="tutor-header">
-              <div>
-                <span className="badge">IA de apoio</span>
-                <h2>Tutor OAB</h2>
-                <p>Tire dúvidas sobre matérias, questões e pegadinhas.</p>
-              </div>
+    const answer =
+      data?.candidates?.[0]?.content?.parts
+        ?.map((part: { text?: string }) => part.text || "")
+        .join("\n")
+        .trim() || "";
 
-              <button
-                type="button"
-                className="btn ghost"
-                onClick={() => setOpen(false)}
-              >
-                Fechar
-              </button>
-            </header>
+    if (!answer) {
+      return NextResponse.json(
+        { error: "A IA não retornou uma resposta válida." },
+        { status: 500 }
+      );
+    }
 
-            <div className="tutor-suggestions">
-              {quickSuggestions.map((suggestion) => (
-                <button
-                  key={suggestion}
-                  type="button"
-                  onClick={() => sendMessage(suggestion)}
-                  disabled={loading}
-                >
-                  {suggestion}
-                </button>
-              ))}
-            </div>
-
-            <main className="tutor-messages">
-              {messages.map((message, index) => (
-                <div
-                  key={`${message.role}-${index}`}
-                  className={`tutor-message ${message.role}`}
-                >
-                  <p>{message.content}</p>
-                </div>
-              ))}
-
-              {loading && (
-                <div className="tutor-message assistant">
-                  <p>Consultando o Tutor OAB...</p>
-                </div>
-              )}
-            </main>
-
-            <footer className="tutor-input-area">
-              <textarea
-                className="textarea"
-                value={input}
-                onChange={(event) => setInput(event.target.value)}
-                placeholder="Digite sua dúvida. Ex: qual a diferença entre competência exclusiva e privativa?"
-                onKeyDown={(event) => {
-                  if (event.key === "Enter" && !event.shiftKey) {
-                    event.preventDefault();
-                    sendMessage();
-                  }
-                }}
-              />
-
-              <button
-                type="button"
-                className="btn"
-                onClick={() => sendMessage()}
-                disabled={loading || !input.trim()}
-              >
-                Enviar
-              </button>
-            </footer>
-          </aside>
-        </div>
-      )}
-    </>
-  );
+    return NextResponse.json({ answer });
+  } catch (error) {
+    return NextResponse.json(
+      {
+        error:
+          error instanceof Error
+            ? error.message
+            : "Erro inesperado ao consultar o Tutor OAB."
+      },
+      { status: 500 }
+    );
+  }
 }
