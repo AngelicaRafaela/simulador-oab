@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { Navigation } from "@/components/Navigation";
+import { TutorOab } from "@/components/TutorOab";
 
 export const metadata: Metadata = {
   title: "Simulador OAB",
@@ -13,6 +14,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body>
         <Navigation />
         <main className="container">{children}</main>
+
+   <TutorOab />
       </body>
     </html>
   );
