@@ -80,7 +80,7 @@ onUpdateQuestion({
       localStorage.removeItem("oab-current-context");
     }
 
-    closeModal();
+    setSelected(null);
   }}
 >
   Fechar
