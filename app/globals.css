@@ -1806,3 +1806,571 @@ pre {
     width: 100%;
   }
 }
+
+.cronograma-page {
+  width: min(900px, 100%);
+  margin: 0 auto;
+  display: grid;
+  gap: 18px;
+}
+
+.cronograma-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.cronograma-header h1 {
+  margin: 0 0 6px;
+  font-size: clamp(2rem, 4vw, 3.2rem);
+  letter-spacing: -0.05em;
+}
+
+.cronograma-header p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 1.05rem;
+  line-height: 1.6;
+}
+
+.cronograma-header-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.cronograma-config {
+  display: grid;
+  gap: 16px;
+}
+
+.cronograma-weekdays {
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+}
+
+.cronograma-progress {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 12px;
+  border-color: rgba(236, 72, 153, 0.28);
+  background: linear-gradient(135deg, #fff, #fff7fb);
+}
+
+.cronograma-progress strong {
+  display: block;
+}
+
+.cronograma-progress span {
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.cronograma-percent {
+  color: #db2777;
+  font-size: 1.7rem;
+}
+
+.cronograma-progress-bar {
+  grid-column: 1 / -1;
+  height: 8px;
+  border-radius: 999px;
+  background: #fbcfe8;
+  overflow: hidden;
+}
+
+.cronograma-progress-bar div {
+  height: 100%;
+  background: #db2777;
+}
+
+.cronograma-list {
+  display: grid;
+  gap: 22px;
+}
+
+.cronograma-day {
+  display: grid;
+  gap: 10px;
+}
+
+.cronograma-day-title {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  align-items: center;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 8px;
+}
+
+.cronograma-day-title h2 {
+  margin: 0;
+  font-size: 1.05rem;
+}
+
+.cronograma-day-title span {
+  color: var(--muted);
+  font-weight: 800;
+}
+
+.cronograma-day-items {
+  display: grid;
+  gap: 8px;
+}
+
+.cronograma-item {
+  display: grid;
+  grid-template-columns: 34px 1fr auto;
+  gap: 12px;
+  align-items: center;
+  border: 1px solid var(--border);
+  background: var(--panel);
+  border-radius: 16px;
+  padding: 14px;
+  cursor: pointer;
+  box-shadow: var(--shadow);
+  transition:
+    transform 0.16s ease,
+    border-color 0.16s ease,
+    background 0.16s ease;
+}
+
+.cronograma-item:hover {
+  transform: translateY(-1px);
+  border-color: #db2777;
+  background: #fff7fb;
+}
+
+.cronograma-item.concluido {
+  opacity: 0.58;
+}
+
+.cronograma-item.concluido .cronograma-item-body strong,
+.cronograma-item.concluido .cronograma-matters {
+  text-decoration: line-through;
+}
+
+.cronograma-item.em_andamento {
+  border-color: var(--accent);
+  background: #fff8dc;
+}
+
+.cronograma-status-button {
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  border: 2px solid var(--muted);
+  background: transparent;
+  display: grid;
+  place-items: center;
+  color: var(--success);
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.cronograma-item.concluido .cronograma-status-button {
+  border-color: var(--success);
+  background: #dcfce7;
+}
+
+.cronograma-item-body {
+  min-width: 0;
+}
+
+.cronograma-item-body strong {
+  display: block;
+  margin-bottom: 6px;
+}
+
+.cronograma-item-body p {
+  margin: 6px 0 0;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.cronograma-matters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.cronograma-matters span {
+  display: inline-flex;
+  border-radius: 999px;
+  border: 1px solid #f9a8d4;
+  background: #fdf2f8;
+  color: #831843;
+  padding: 4px 8px;
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.cronograma-arrow {
+  color: var(--muted);
+  font-size: 1.8rem;
+}
+
+.session-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  background: rgba(32, 18, 28, 0.64);
+  backdrop-filter: blur(8px);
+  padding: 26px;
+  display: grid;
+  place-items: center;
+}
+
+.session-modal {
+  width: min(1120px, 100%);
+  max-height: calc(100vh - 52px);
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 28px;
+  box-shadow: 0 28px 90px rgba(32, 18, 28, 0.36);
+  display: grid;
+  grid-template-rows: auto auto 1fr auto;
+  overflow: hidden;
+}
+
+.session-modal-header {
+  padding: 22px 24px;
+  display: flex;
+  justify-content: space-between;
+  gap: 18px;
+  border-bottom: 1px solid var(--border);
+  background: linear-gradient(135deg, #fff, #fff7fb);
+}
+
+.session-modal-header h2 {
+  margin: 10px 0;
+  font-size: 1.8rem;
+}
+
+.session-modal-matters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.session-modal-matters span {
+  border-radius: 999px;
+  background: #fdf2f8;
+  border: 1px solid #f9a8d4;
+  color: #831843;
+  padding: 5px 9px;
+  font-weight: 800;
+  font-size: 0.82rem;
+}
+
+.session-steps {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  border-bottom: 1px solid var(--border);
+  background: var(--panel-2);
+}
+
+.session-steps button {
+  border: 0;
+  background: transparent;
+  padding: 12px;
+  font-weight: 900;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.session-steps button.active {
+  color: #db2777;
+  border-bottom: 3px solid #db2777;
+  background: #fff7fb;
+}
+
+.session-modal-body {
+  overflow-y: auto;
+  padding: 24px;
+}
+
+.session-step-content {
+  display: grid;
+  gap: 18px;
+}
+
+.session-step-title h3 {
+  margin: 0 0 6px;
+  font-size: 1.5rem;
+}
+
+.session-step-title p {
+  margin: 0;
+  color: var(--muted);
+}
+
+.session-material-list {
+  display: grid;
+  gap: 16px;
+}
+
+.session-material-card {
+  border: 1px solid var(--border);
+  background: var(--panel);
+  border-radius: 22px;
+  padding: 20px;
+  box-shadow: var(--shadow);
+}
+
+.session-material-card h3 {
+  margin: 8px 0 12px;
+  font-size: 1.4rem;
+}
+
+.session-material-card p,
+.session-material-card li {
+  line-height: 1.8;
+}
+
+.session-material-section {
+  border-top: 1px solid var(--border);
+  margin-top: 16px;
+  padding-top: 16px;
+}
+
+.session-material-section h4 {
+  margin: 0 0 10px;
+  color: var(--primary);
+}
+
+.session-question-card {
+  display: grid;
+  gap: 16px;
+}
+
+.session-question-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+}
+
+.session-question-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.session-question-counter {
+  color: var(--muted);
+  font-weight: 900;
+}
+
+.session-progress {
+  height: 6px;
+  border-radius: 999px;
+  background: #fbcfe8;
+  overflow: hidden;
+}
+
+.session-progress div {
+  height: 100%;
+  background: #db2777;
+}
+
+.session-statement {
+  border: 1px solid var(--border);
+  border-top: 4px solid #db2777;
+  border-radius: 18px;
+  padding: 22px;
+  background: var(--panel);
+  box-shadow: var(--shadow);
+}
+
+.session-statement p {
+  margin: 0;
+  line-height: 1.85;
+  font-size: 1.05rem;
+}
+
+.session-options {
+  display: grid;
+  gap: 10px;
+}
+
+.session-option {
+  border: 1px solid var(--border);
+  background: var(--panel);
+  border-radius: 14px;
+  padding: 14px 16px;
+  display: grid;
+  grid-template-columns: 32px 1fr;
+  gap: 12px;
+  align-items: start;
+  text-align: left;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.session-option strong {
+  font-weight: 900;
+}
+
+.session-option span {
+  line-height: 1.6;
+}
+
+.session-option:hover,
+.session-option.selected {
+  border-color: #db2777;
+  background: #fff7fb;
+}
+
+.session-option.correct {
+  border-color: var(--success);
+  background: #ecfdf3;
+  color: #166534;
+}
+
+.session-option.wrong {
+  border-color: var(--danger);
+  background: #fff0ee;
+  color: #991b1b;
+}
+
+.session-center-actions {
+  display: flex;
+  justify-content: center;
+}
+
+.session-feedback {
+  border-radius: 14px;
+  padding: 14px;
+  border: 1px solid var(--border);
+}
+
+.session-feedback.correct {
+  color: #166534;
+  border-color: var(--success);
+  background: #ecfdf3;
+}
+
+.session-feedback.wrong {
+  color: #991b1b;
+  border-color: var(--danger);
+  background: #fff0ee;
+}
+
+.session-explanation {
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  padding: 18px;
+  background: #fff7fb;
+}
+
+.session-explanation h3 {
+  margin-top: 0;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  font-size: 0.86rem;
+  color: var(--muted);
+}
+
+.session-explanation p {
+  line-height: 1.8;
+}
+
+.session-notes-inline details {
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 14px;
+  background: var(--panel);
+}
+
+.session-notes-inline summary {
+  cursor: pointer;
+  font-weight: 800;
+  color: var(--muted);
+}
+
+.session-notes-inline textarea {
+  margin-top: 12px;
+  min-height: 100px;
+}
+
+.session-result-card {
+  border: 1px solid var(--border);
+  border-radius: 24px;
+  padding: 28px;
+  text-align: center;
+  background: #fff7fb;
+}
+
+.session-result-card span {
+  display: block;
+  color: var(--muted);
+  font-weight: 900;
+  margin-bottom: 8px;
+}
+
+.session-result-card strong {
+  display: block;
+  font-size: 4rem;
+  color: #db2777;
+}
+
+.session-result-card.compact strong {
+  font-size: 2.8rem;
+}
+
+.session-final-card {
+  max-width: 620px;
+  margin: 0 auto;
+  text-align: center;
+  display: grid;
+  gap: 18px;
+}
+
+.session-modal-footer {
+  border-top: 1px solid var(--border);
+  padding: 14px 18px;
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  background: var(--panel);
+}
+
+.session-footer-center {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 760px) {
+  .cronograma-header,
+  .session-modal-header,
+  .session-modal-footer {
+    display: grid;
+  }
+
+  .session-steps {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .session-modal-backdrop {
+    padding: 10px;
+  }
+
+  .session-modal {
+    max-height: calc(100vh - 20px);
+    border-radius: 18px;
+  }
+
+  .session-modal-body {
+    padding: 16px;
+  }
+
+  .cronograma-progress {
+    grid-template-columns: 1fr;
+  }
+
+  .cronograma-weekdays {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}

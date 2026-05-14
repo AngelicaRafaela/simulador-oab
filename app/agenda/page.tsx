@@ -1,49 +1,26 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import Link from "next/link";
 import { ClientOnly } from "@/components/ClientOnly";
-
-type StudyTopic = {
-  title: string;
-  short_summary?: string;
-  sections?: Array<{
-    title: string;
-    items: string[];
-  }>;
-};
-
-type StudyMaterial = {
-  id: string;
-  title: string;
-  discipline: string;
-  main_topic: string;
-  source_file_name: string;
-  topics: StudyTopic[];
-};
+import { useOabData } from "@/hooks/useOabData";
+import {
+  StudySessionModal,
+  formatMatterTitle,
+  type ScheduleMatter,
+  type ScheduleSession,
+  type StudyMaterialForSession
+} from "@/components/StudySessionModal";
 
 type StudyQueueItem = {
   discipline: string;
-  matter: string;
+  matter: ScheduleMatter;
   estimated_reading_minutes: number;
   source_order: number;
-};
-
-type StudyScheduleItem = {
-  id: string;
-  date: string;
-  discipline: string;
-  matters: string[];
-  reading_minutes: number;
-  questions_minutes: number;
-  simulation_minutes: number;
-  estimated_minutes: number;
-  status: "pendente" | "em_andamento" | "concluido";
-  completed_at?: string;
+  topic_order: number;
 };
 
 const MATERIALS_STORAGE_KEY = "oab-study-materials-v1";
-const SCHEDULE_STORAGE_KEY = "oab-study-schedule-v2";
+const SCHEDULE_STORAGE_KEY = "oab-study-schedule-v4";
 
 const WEEKDAYS = [
   { label: "Segunda", value: 1 },
@@ -55,7 +32,7 @@ const WEEKDAYS = [
   { label: "Domingo", value: 0 }
 ];
 
-function loadMaterials(): StudyMaterial[] {
+function loadMaterials(): StudyMaterialForSession[] {
   if (typeof window === "undefined") return [];
 
   try {
@@ -66,7 +43,7 @@ function loadMaterials(): StudyMaterial[] {
   }
 }
 
-function loadSchedule(): StudyScheduleItem[] {
+function loadSchedule(): ScheduleSession[] {
   if (typeof window === "undefined") return [];
 
   try {
@@ -77,7 +54,7 @@ function loadSchedule(): StudyScheduleItem[] {
   }
 }
 
-function saveSchedule(schedule: StudyScheduleItem[]) {
+function saveSchedule(schedule: ScheduleSession[]) {
   localStorage.setItem(SCHEDULE_STORAGE_KEY, JSON.stringify(schedule));
 }
 
@@ -91,106 +68,45 @@ function addDays(date: Date, days: number) {
   return copy;
 }
 
-function formatDate(dateString: string) {
+function formatDateTitle(dateString: string) {
   const date = new Date(`${dateString}T12:00:00`);
+  const today = new Date();
+  const tomorrow = addDays(today, 1);
 
-  return date.toLocaleDateString("pt-BR", {
-    weekday: "long",
+  const input = toInputDate(date);
+  const todayInput = toInputDate(today);
+  const tomorrowInput = toInputDate(tomorrow);
+
+  const dayMonth = date.toLocaleDateString("pt-BR", {
     day: "2-digit",
     month: "2-digit"
   });
-}
 
-function cleanMatterName(name: string) {
-  const cleaned = name
-    .replace(/\s*-\s*continuação/gi, "")
-    .replace(/\s*-\s*art\.\s*\d+.*$/gi, "")
-    .replace(/\s*-\s*páginas?.*$/gi, "")
-    .replace(/\s+/g, " ")
-    .trim();
+  if (input === todayInput) return `Hoje • ${dayMonth}`;
+  if (input === tomorrowInput) return `Amanhã • ${dayMonth}`;
 
-  const replacements: Record<string, string> = {
-    "Direito sindical": "Direito Sindical",
-    "Estabilidade do dirigente sindical": "Estabilidade do Dirigente Sindical",
-    "Nacionalidade - brasileiros natos": "Nacionalidade: Brasileiros Natos",
-    "Nacionalidade - brasileiros naturalizados":
-      "Nacionalidade: Brasileiros Naturalizados",
-    "Cargos privativos de brasileiros natos":
-      "Cargos Privativos de Brasileiros Natos",
-    "Perda da nacionalidade": "Perda da Nacionalidade",
-    "Direitos políticos": "Direitos Políticos",
-    "Partidos políticos": "Partidos Políticos",
-    "Organização do Estado - formas de Estado":
-      "Organização do Estado: Formas de Estado",
-    "Federação brasileira e União": "Federação Brasileira e União",
-    "Relação entre Estado e religião": "Relação entre Estado e Religião",
-    "Bens da União": "Bens da União",
-    "Alteração territorial de Estados": "Alteração Territorial de Estados",
-    "Criação, incorporação, fusão ou desmembramento de Municípios":
-      "Criação, Incorporação, Fusão ou Desmembramento de Municípios",
-    "Repartição de competências": "Repartição de Competências",
-    "Competência exclusiva da União": "Competência Exclusiva da União",
-    "Competência privativa da União": "Competência Privativa da União",
-    "Competência comum": "Competência Comum",
-    "Competência concorrente": "Competência Concorrente",
-    "Administração Pública - princípios":
-      "Administração Pública: Princípios",
-    "Cargos públicos e concurso público":
-      "Cargos Públicos e Concurso Público",
-    "Liberdade sindical e greve de servidor público civil":
-      "Liberdade Sindical e Greve de Servidor Público Civil",
-    "Remédios constitucionais": "Remédios Constitucionais",
-    "Direitos sociais": "Direitos Sociais",
-    "Direitos dos trabalhadores urbanos e rurais":
-      "Direitos dos Trabalhadores Urbanos e Rurais",
-    "Introdução à Constituição": "Introdução à Constituição",
-    "Classificação das Constituições": "Classificação das Constituições",
-    "Elementos das Constituições": "Elementos das Constituições",
-    "Poderes do Estado e funções": "Poderes do Estado e Funções",
-    "Poder Constituinte": "Poder Constituinte",
-    "Eficácia e aplicabilidade das normas constitucionais":
-      "Eficácia e Aplicabilidade das Normas Constitucionais",
-    "Constituição Brasileira de 1988": "Constituição Brasileira de 1988",
-    "Princípios Fundamentais": "Princípios Fundamentais",
-    "Direitos e Garantias Fundamentais": "Direitos e Garantias Fundamentais",
-    "Art. 5º - Direitos e deveres individuais e coletivos":
-      "Art. 5º: Direitos e Deveres Individuais e Coletivos"
-  };
+  const weekday = date.toLocaleDateString("pt-BR", {
+    weekday: "long"
+  });
 
-  if (replacements[cleaned]) {
-    return replacements[cleaned];
-  }
+  const capitalizedWeekday =
+    weekday.charAt(0).toUpperCase() + weekday.slice(1);
 
-  return cleaned.replace(/\b\w/g, (char) => char.toUpperCase());
-}
-
-function formatMatterList(matters: string[]) {
-  if (matters.length === 0) return "";
-
-  if (matters.length === 1) return matters[0];
-
-  if (matters.length === 2) {
-    return `${matters[0]} e ${matters[1]}`;
-  }
-
-  return `${matters.slice(0, -1).join(", ")} e ${
-    matters[matters.length - 1]
-  }`;
+  return `${capitalizedWeekday} • ${dayMonth}`;
 }
 
 function extractSourceOrder(fileName: string) {
   const match = fileName.match(/-(\d+)-(\d+)\.pdf/i);
 
-  if (match?.[1]) {
-    return Number(match[1]);
-  }
+  if (match?.[1]) return Number(match[1]);
 
   return 9999;
 }
 
-function estimateReadingMinutes(topic: StudyTopic) {
-  const summaryWords = (topic.short_summary || "").split(/\s+/).filter(Boolean)
-    .length;
+function estimateReadingMinutes(topic: StudyMaterialForSession["topics"][number]) {
+  const summaryWords = (topic.short_summary || "")
+    .split(/\s+/)
+    .filter(Boolean).length;
 
   const sectionItems =
     topic.sections?.reduce((total, section) => total + section.items.length, 0) ||
@@ -201,14 +117,18 @@ function estimateReadingMinutes(topic: StudyTopic) {
   return Math.max(8, Math.min(estimated, 35));
 }
 
-function getStudyQueue(materials: StudyMaterial[]): StudyQueueItem[] {
+function getStudyQueue(materials: StudyMaterialForSession[]): StudyQueueItem[] {
   return materials
     .flatMap((material) =>
-      (material.topics || []).map((topic) => ({
+      (material.topics || []).map((topic, topicIndex) => ({
         discipline: material.discipline || "Sem disciplina",
-        matter: cleanMatterName(topic.title),
+        matter: {
+          title: topic.title,
+          label: formatMatterTitle(topic.title)
+        },
         estimated_reading_minutes: estimateReadingMinutes(topic),
-        source_order: extractSourceOrder(material.source_file_name || "")
+        source_order: extractSourceOrder(material.source_file_name || ""),
+        topic_order: topicIndex
       }))
     )
     .sort((a, b) => {
@@ -220,18 +140,44 @@ function getStudyQueue(materials: StudyMaterial[]): StudyQueueItem[] {
         return a.source_order - b.source_order;
       }
 
-      return a.matter.localeCompare(b.matter);
+      return a.topic_order - b.topic_order;
     });
 }
 
-function AgendaContent() {
-  const [materials] = useState<StudyMaterial[]>(loadMaterials);
-  const [schedule, setSchedule] =
-    useState<StudyScheduleItem[]>(loadSchedule);
+function countQuestionsForSession(
+  discipline: string,
+  matters: ScheduleMatter[],
+  questions: ReturnType<typeof useOabData>["questions"]
+) {
+  const subjectQuestions = questions.filter(
+    (question) =>
+      question.review_status === "validado" && question.subject === discipline
+  );
 
-  const [hoursPerDay, setHoursPerDay] = useState("2");
-  const [startDate, setStartDate] = useState(toInputDate(new Date()));
+  const matterLabels = matters.map((matter) => matter.label.toLowerCase());
+
+  const topicQuestions = subjectQuestions.filter((question) => {
+    if (!question.topic) return false;
+
+    return matterLabels.includes(formatMatterTitle(question.topic).toLowerCase());
+  });
+
+  return topicQuestions.length > 0 ? topicQuestions.length : subjectQuestions.length;
+}
+
+function AgendaContent() {
+  const { questions } = useOabData();
+
+  const [materials] = useState<StudyMaterialForSession[]>(loadMaterials);
+  const [schedule, setSchedule] = useState<ScheduleSession[]>(loadSchedule);
+  const [activeSession, setActiveSession] = useState<ScheduleSession | null>(
+    null
+  );
+
+  const [hoursPerDay, setHoursPerDay] = useState("3");
+  const [startDate, setStartDate] = useState(toInputDate(addDays(new Date(), 1)));
   const [selectedDays, setSelectedDays] = useState<number[]>([1, 2, 3, 4, 5]);
+  const [showConfig, setShowConfig] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
 
@@ -243,11 +189,20 @@ function AgendaContent() {
     const pending = schedule.filter((item) => item.status !== "concluido").length;
     const percentage = total > 0 ? Math.round((done / total) * 100) : 0;
 
-    return { total, done, pending, percentage };
+    const totalMinutes = schedule.reduce(
+      (sum, item) => sum + item.estimated_minutes,
+      0
+    );
+
+    const doneMinutes = schedule
+      .filter((item) => item.status === "concluido")
+      .reduce((sum, item) => sum + item.estimated_minutes, 0);
+
+    return { total, done, pending, percentage, totalMinutes, doneMinutes };
   }, [schedule]);
 
   const groupedSchedule = useMemo(() => {
-    return schedule.reduce<Record<string, StudyScheduleItem[]>>((acc, item) => {
+    return schedule.reduce<Record<string, ScheduleSession[]>>((acc, item) => {
       if (!acc[item.date]) acc[item.date] = [];
       acc[item.date].push(item);
       return acc;
@@ -268,31 +223,31 @@ function AgendaContent() {
 
     if (studyQueue.length === 0) {
       setError(
-        "Nenhum material encontrado. Importe materiais JSON antes de gerar a agenda."
+        "Nenhum material encontrado. Importe materiais JSON antes de gerar o cronograma."
       );
       return;
     }
 
     if (selectedDays.length === 0) {
-      setError("Selecione pelo menos um dia da semana para estudo.");
+      setError("Selecione pelo menos um dia da semana.");
       return;
     }
 
     const dailyMinutes = Math.max(30, Number(hoursPerDay || 1) * 60);
 
     const readingTarget = Math.min(
-      Math.max(20, Math.round(dailyMinutes * 0.35)),
-      60
+      Math.max(25, Math.round(dailyMinutes * 0.35)),
+      70
     );
 
-    const questionsMinutes = Math.max(20, Math.round(dailyMinutes * 0.4));
+    const questionsMinutes = Math.max(20, Math.round(dailyMinutes * 0.38));
     const simulationMinutes = Math.max(
       10,
       dailyMinutes - readingTarget - questionsMinutes
     );
 
     const start = new Date(`${startDate}T12:00:00`);
-    const nextSchedule: StudyScheduleItem[] = [];
+    const nextSchedule: ScheduleSession[] = [];
 
     let currentDate = start;
     let queueIndex = 0;
@@ -320,15 +275,23 @@ function AgendaContent() {
           if (dayMatters.length >= 4) break;
         }
 
+        const matters = dayMatters.map((item) => item.matter);
+        const questionCount = countQuestionsForSession(
+          firstDiscipline,
+          matters,
+          questions
+        );
+
         nextSchedule.push({
           id: `agenda-${Date.now()}-${nextSchedule.length}`,
           date: toInputDate(currentDate),
           discipline: firstDiscipline,
-          matters: dayMatters.map((item) => item.matter),
+          matters,
           reading_minutes: readingMinutes,
           questions_minutes: questionsMinutes,
           simulation_minutes: simulationMinutes,
           estimated_minutes: dailyMinutes,
+          question_count: questionCount,
           status: "pendente"
         });
       }
@@ -339,26 +302,49 @@ function AgendaContent() {
 
     setSchedule(nextSchedule);
     saveSchedule(nextSchedule);
-    setMessage("Cronograma gerado com sessões de leitura, questões e mini simulado.");
+    setMessage("Cronograma gerado com sucesso.");
+    setShowConfig(false);
   };
 
-  const updateStatus = (
-    id: string,
-    status: StudyScheduleItem["status"]
-  ) => {
+  const updateSession = (updatedSession: ScheduleSession) => {
     const updated = schedule.map((item) =>
-      item.id === id
+      item.id === updatedSession.id ? updatedSession : item
+    );
+
+    setSchedule(updated);
+    saveSchedule(updated);
+  };
+
+  const cycleStatus = (session: ScheduleSession) => {
+    const nextStatus =
+      session.status === "pendente"
+        ? "em_andamento"
+        : session.status === "em_andamento"
+          ? "concluido"
+          : "pendente";
+
+    updateSession({
+      ...session,
+      status: nextStatus,
+      completed_at:
+        nextStatus === "concluido" ? new Date().toISOString() : undefined
+    });
+  };
+
+  const markComplete = (sessionId: string) => {
+    const updated = schedule.map((item) =>
+      item.id === sessionId
         ? {
             ...item,
-            status,
-            completed_at:
-              status === "concluido" ? new Date().toISOString() : undefined
+            status: "concluido" as const,
+            completed_at: new Date().toISOString()
           }
         : item
     );
 
     setSchedule(updated);
     saveSchedule(updated);
+    setActiveSession(null);
   };
 
   const clearSchedule = () => {
@@ -372,28 +358,31 @@ function AgendaContent() {
   };
 
   return (
-    <div className="agenda-page">
-      <section className="card agenda-hero">
+    <div className="cronograma-page">
+      <section className="cronograma-header">
         <div>
-          <h1>Agenda de estudos</h1>
-
-          <p className="lead">
-            Monte sessões diárias combinando leitura do material, resolução de
-            questões e mini simulado.
-          </p>
+          <h1>Cronograma de Estudos</h1>
+          <p>Clique em qualquer sessão para estudar os materiais e questões.</p>
         </div>
 
-        <div className="agenda-progress-card">
-          <strong>{progress.percentage}%</strong>
-          <span>do cronograma concluído</span>
+        <div className="cronograma-header-actions">
+          <button
+            type="button"
+            className="btn secondary"
+            onClick={() => setShowConfig((current) => !current)}
+          >
+            Reconfigurar
+          </button>
+
+          <button type="button" className="btn" onClick={generateSchedule}>
+            Gerar Cronograma
+          </button>
         </div>
       </section>
 
-      <section className="agenda-grid">
-        <aside className="card agenda-config">
-          <h2>Configuração</h2>
-
-          <div className="form-row single">
+      {showConfig && (
+        <section className="card cronograma-config">
+          <div className="form-row">
             <div>
               <label>Horas por dia</label>
 
@@ -417,13 +406,17 @@ function AgendaContent() {
                 onChange={(event) => setStartDate(event.target.value)}
               />
             </div>
+
+            <div>
+              <label>Ação</label>
+
+              <button type="button" className="btn" onClick={generateSchedule}>
+                Aplicar cronograma
+              </button>
+            </div>
           </div>
 
-          <div className="divider" />
-
-          <h3>Dias de estudo</h3>
-
-          <div className="weekday-grid">
+          <div className="weekday-grid cronograma-weekdays">
             {WEEKDAYS.map((day) => (
               <button
                 key={day.value}
@@ -437,163 +430,126 @@ function AgendaContent() {
               </button>
             ))}
           </div>
+        </section>
+      )}
 
-          <div className="divider" />
+      {message && <div className="success">{message}</div>}
+      {error && <div className="error">{error}</div>}
 
-          <div className="actions">
-            <button className="btn" onClick={generateSchedule}>
-              Gerar cronograma
-            </button>
+      <section className="cronograma-progress card">
+        <div>
+          <strong>Progresso geral</strong>
+          <span>
+            {progress.done} de {progress.total} sessões concluídas •{" "}
+            {Math.round(progress.doneMinutes / 60)}h de{" "}
+            {Math.round(progress.totalMinutes / 60)}h
+          </span>
+        </div>
 
-            <button className="btn secondary" onClick={clearSchedule}>
-              Limpar
-            </button>
-          </div>
+        <strong className="cronograma-percent">{progress.percentage}%</strong>
 
-          {message && (
-            <div className="success" style={{ marginTop: 16 }}>
-              {message}
-            </div>
-          )}
-
-          {error && (
-            <div className="error" style={{ marginTop: 16 }}>
-              {error}
-            </div>
-          )}
-        </aside>
-
-        <main className="agenda-content">
-          <section className="agenda-stats">
-            <div className="card stat-card">
-              <span>Sessões</span>
-              <strong>{progress.total}</strong>
-            </div>
-
-            <div className="card stat-card">
-              <span>Concluídas</span>
-              <strong>{progress.done}</strong>
-            </div>
-
-            <div className="card stat-card">
-              <span>Pendentes</span>
-              <strong>{progress.pending}</strong>
-            </div>
-          </section>
-
-          {schedule.length === 0 ? (
-            <section className="card">
-              <p className="muted">
-                Nenhum cronograma gerado ainda. Configure os dias e clique em
-                “Gerar cronograma”.
-              </p>
-            </section>
-          ) : (
-            <section className="agenda-calendar">
-              {Object.entries(groupedSchedule).map(([date, items]) => (
-                <div className="card agenda-day" key={date}>
-                  <h2>{formatDate(date)}</h2>
-
-                  <div className="agenda-day-list">
-                    {items.map((item) => {
-                      const firstMatter = item.matters[0] || "";
-                      const materialUrl = `/materiais?disciplina=${encodeURIComponent(
-                        item.discipline
-                      )}&materia=${encodeURIComponent(firstMatter)}`;
-
-                      const questionsUrl = `/banco?disciplina=${encodeURIComponent(
-                        item.discipline
-                      )}&materia=${encodeURIComponent(firstMatter)}`;
-
-                      const simulationUrl = `/simulado?disciplina=${encodeURIComponent(
-                        item.discipline
-                      )}&materia=${encodeURIComponent(firstMatter)}&modo=mini`;
-
-                      return (
-                        <div
-                          key={item.id}
-                          className={`agenda-item ${item.status}`}
-                        >
-<div className="agenda-item-content">
-  <div className="agenda-item-header">
-    <span className="badge">{item.discipline}</span>
-
-    <h3>Sessão de estudo</h3>
-  </div>
-
-  <div className="agenda-matter-list">
-    {item.matters.map((matter) => (
-      <span key={matter}>{matter}</span>
-    ))}
-  </div>
-
-  <div className="agenda-plan">
-    <div>
-      <strong>{item.reading_minutes} min</strong>
-      <span>Leitura</span>
-    </div>
-
-    <div>
-      <strong>{item.questions_minutes} min</strong>
-      <span>Questões</span>
-    </div>
-
-    <div>
-      <strong>{item.simulation_minutes} min</strong>
-      <span>Mini simulado</span>
-    </div>
-  </div>
-
-  <p className="agenda-status">
-    Status:{" "}
-    <strong>
-      {item.status === "concluido"
-        ? "Concluído"
-        : item.status === "em_andamento"
-          ? "Em andamento"
-          : "Pendente"}
-    </strong>
-  </p>
-</div>
-
-                          <div className="agenda-actions">
-                            <Link
-                              className="btn"
-                              href={materialUrl}
-                              onClick={() =>
-                                updateStatus(item.id, "em_andamento")
-                              }
-                            >
-                              Estudar material
-                            </Link>
-
-                            <Link className="btn secondary" href={questionsUrl}>
-                              Fazer questões
-                            </Link>
-
-                            <Link className="btn secondary" href={simulationUrl}>
-                              Mini simulado
-                            </Link>
-
-                            <button
-                              className="btn"
-                              onClick={() =>
-                                updateStatus(item.id, "concluido")
-                              }
-                            >
-                              Marcar como feito
-                            </button>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              ))}
-            </section>
-          )}
-        </main>
+        <div className="cronograma-progress-bar">
+          <div style={{ width: `${progress.percentage}%` }} />
+        </div>
       </section>
+
+      {schedule.length === 0 ? (
+        <section className="card">
+          <p className="muted">
+            Nenhum cronograma gerado ainda. Clique em “Gerar Cronograma”.
+          </p>
+        </section>
+      ) : (
+        <section className="cronograma-list">
+          {Object.entries(groupedSchedule).map(([date, items]) => (
+            <div className="cronograma-day" key={date}>
+              <div className="cronograma-day-title">
+                <h2>{formatDateTitle(date)}</h2>
+
+                <span>
+                  {items.reduce((sum, item) => sum + item.estimated_minutes, 0) /
+                    60}
+                  h • {items.filter((item) => item.status === "concluido").length}
+                  /{items.length} ok
+                </span>
+              </div>
+
+              <div className="cronograma-day-items">
+                {items.map((item) => (
+                  <article
+                    key={item.id}
+                    className={`cronograma-item ${item.status}`}
+                    onClick={() => {
+                      if (item.status === "pendente") {
+                        updateSession({ ...item, status: "em_andamento" });
+                      }
+
+                      setActiveSession({
+                        ...item,
+                        status:
+                          item.status === "pendente"
+                            ? "em_andamento"
+                            : item.status
+                      });
+                    }}
+                  >
+                    <button
+                      type="button"
+                      className="cronograma-status-button"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        cycleStatus(item);
+                      }}
+                      aria-label="Alterar status"
+                    >
+                      {item.status === "concluido" ? "✓" : ""}
+                    </button>
+
+                    <div className="cronograma-item-body">
+                      <strong>{item.discipline}</strong>
+
+                      <div className="cronograma-matters">
+                        {item.matters.slice(0, 3).map((matter) => (
+                          <span key={matter.label}>{matter.label}</span>
+                        ))}
+
+                        {item.matters.length > 3 && (
+                          <span>+{item.matters.length - 3} matéria(s)</span>
+                        )}
+                      </div>
+
+                      <p>
+                        {item.reading_minutes} min leitura •{" "}
+                        {item.question_count || 0} questões • mini simulado
+                      </p>
+                    </div>
+
+                    <span className="cronograma-arrow">›</span>
+                  </article>
+                ))}
+              </div>
+            </div>
+          ))}
+        </section>
+      )}
+
+      {schedule.length > 0 && (
+        <div className="actions">
+          <button type="button" className="btn secondary" onClick={clearSchedule}>
+            Limpar cronograma
+          </button>
+        </div>
+      )}
+
+      {activeSession && (
+        <StudySessionModal
+          session={activeSession}
+          materials={materials}
+          questions={questions}
+          onClose={() => setActiveSession(null)}
+          onComplete={markComplete}
+        />
+      )}
     </div>
   );
 }
